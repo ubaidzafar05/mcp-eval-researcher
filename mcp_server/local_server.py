@@ -12,6 +12,16 @@ class LocalMCPServer:
     def __init__(self, config: RunConfig, root: Path | None = None):
         self.config = config
         self.root = root or Path.cwd()
+        self._excluded_roots = {
+            ".git",
+            ".venv",
+            "__pycache__",
+            ".pytest_cache",
+            ".ruff_cache",
+            "outputs",
+            "logs",
+            "data",
+        }
 
     def health(self) -> dict[str, Any]:
         return {"status": "ok", "root": str(self.root)}
@@ -29,12 +39,37 @@ class LocalMCPServer:
     def list_project_files(self, pattern: str = "*") -> list[str]:
         results: list[str] = []
         for file_path in self.root.rglob("*"):
+            if any(part in self._excluded_roots for part in file_path.parts):
+                continue
             if file_path.is_file() and fnmatch.fnmatch(file_path.name, pattern):
                 results.append(str(file_path.relative_to(self.root)))
         return sorted(results)
 
     def code_search(self, pattern: str, max_results: int = 20) -> list[dict[str, str]]:
-        rg = ["rg", "-n", "--color", "never", pattern, str(self.root)]
+        rg = [
+            "rg",
+            "-n",
+            "--color",
+            "never",
+            "-g",
+            "!.git/**",
+            "-g",
+            "!.venv/**",
+            "-g",
+            "!__pycache__/**",
+            "-g",
+            "!.pytest_cache/**",
+            "-g",
+            "!.ruff_cache/**",
+            "-g",
+            "!outputs/**",
+            "-g",
+            "!logs/**",
+            "-g",
+            "!data/**",
+            pattern,
+            str(self.root),
+        ]
         try:
             output = subprocess.check_output(rg, text=True, stderr=subprocess.DEVNULL)
         except Exception:  # noqa: BLE001
@@ -56,4 +91,3 @@ class LocalMCPServer:
         target = out_dir / "final_report.md"
         target.write_text(content, encoding="utf-8")
         return str(target)
-

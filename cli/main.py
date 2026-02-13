@@ -81,6 +81,11 @@ def doctor() -> None:
     table.add_row("Transport Active", str(probe.transport_active))
     table.add_row("Fallback Active", str(probe.fallback_active))
     table.add_row("Fallback Reason", probe.fallback_reason or "none")
+    if cfg.mcp_transport == "streamable-http":
+        table.add_row(
+            "HTTP Reachability",
+            f"web={probe.web_healthy}, local={probe.local_healthy}",
+        )
     table.add_row(
         "HTTP Token Ready",
         str(bool(cfg.mcp_auth_token or cfg.mcp_allow_insecure_http)),
