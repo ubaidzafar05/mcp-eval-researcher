@@ -1,0 +1,65 @@
+[tool.poetry]
+name = "cloud-hive"
+version = "0.1.0"
+description = "Cloud-free cutting-edge research engine with LangGraph, MCP, and DeepEval controls."
+authors = ["Cloud Hive Team"]
+readme = "README.md"
+packages = [
+  { include = "agents" },
+  { include = "cli" },
+  { include = "core" },
+  { include = "evals" },
+  { include = "graph" },
+  { include = "memory" },
+  { include = "mcp_server" },
+  { include = "service" },
+  { include = "scripts" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+langgraph = "*"
+pydantic = "^2.11.0"
+pydantic-ai = "*"
+mcp = ">=1.0.0"
+deepeval = "*"
+tavily-python = "*"
+langsmith = "*"
+python-dotenv = "*"
+httpx = "*"
+trafilatura = "*"
+pytest = "*"
+rich = "*"
+loguru = "*"
+typer = "^0.16.0"
+chromadb = "^1.0.0"
+fastapi = "^0.116.0"
+uvicorn = "^0.35.0"
+prometheus-client = "^0.22.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "*"
+ruff = "^0.12.0"
+
+[tool.poetry.scripts]
+cloud-hive = "cli.main:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]
+
+[tool.pytest.ini_options]
+markers = [
+  "stress: marks stress tests (excluded from PR CI by default)",
+]
+
+[build-system]
+requires = ["poetry-core>=1.9.0"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,43 @@
+name: Stress
+
+on:
+  workflow_dispatch:
+    inputs:
+      iterations:
+        description: "Number of stress iterations"
+        required: false
+        default: "10"
+      suite:
+        description: "Stress suite name"
+        required: false
+        default: "basic"
+
+jobs:
+  stress:
+    runs-on: ubuntu-latest
+    env:
+      INTERACTIVE_HITL: "false"
+      HITL_MODE: "never"
+      JUDGE_PROVIDER: "stub"
+      MCP_MODE: "inprocess"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install poetry poetry-plugin-export
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Run stress suite
+        run: |
+          poetry run python -m cli.main stress --suite "${{ github.event.inputs.suite }}" --iterations "${{ github.event.inputs.iterations }}"
+

@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+    env:
+      EXPECTED_GITHUB_OWNER: UbaidZafar
+      INTERACTIVE_HITL: "false"
+      HITL_MODE: "never"
+      JUDGE_PROVIDER: "stub"
+      MCP_MODE: "inprocess"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install poetry poetry-plugin-export
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Set git identity context
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+      - name: Identity preflight (warning on PR)
+        if: github.event_name == 'pull_request'
+        run: |
+          poetry run python -m scripts.preflight_git_identity || echo "::warning::Identity preflight failed (non-blocking on PR)."
+
+      - name: Identity preflight (blocking on push)
+        if: github.event_name == 'push'
+        run: poetry run python -m scripts.preflight_git_identity
+
+      - name: Ruff
+        run: poetry run ruff check .
+
+      - name: Pytest (exclude stress)
+        run: poetry run pytest -q -m "not stress"
+
+      - name: Requirements sync check
+        run: poetry run python -m scripts.check_requirements_sync
