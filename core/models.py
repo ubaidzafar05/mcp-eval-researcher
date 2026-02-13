@@ -120,9 +120,11 @@ class RunConfig(BaseModel):
     tenant_tokens_per_day: int = 200_000
     model_routing_strategy: Literal["adaptive", "cost_optimized", "latency_optimized"] = "adaptive"
     anthropic_api_key: str | None = None
-    openai_api_key: str | None = None
     enable_local_llm: bool = False
     local_llm_endpoint: str | None = None
+    redis_url: str = "redis://localhost:6379/0"
+    celery_broker_url: str = "redis://localhost:6379/0"
+    celery_result_backend: str = "redis://localhost:6379/1"
 
 
 class ResearchResult(BaseModel):

@@ -115,6 +115,9 @@ def load_config(overrides: dict[str, Any] | None = None) -> RunConfig:
         "openai_api_key": os.getenv("OPENAI_API_KEY"),
         "enable_local_llm": _env_bool("ENABLE_LOCAL_LLM", False),
         "local_llm_endpoint": os.getenv("LOCAL_LLM_ENDPOINT"),
+        "redis_url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+        "celery_broker_url": os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0"),
+        "celery_result_backend": os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1"),
     }
     if overrides:
         data.update(overrides)

@@ -215,7 +215,65 @@ def run_graph(
     query: str,
     runtime: GraphRuntime,
     hitl_input_provider: HITLInputProvider | None = None,
+    distributed: bool = False,
 ) -> ResearchState:
+    """
+    Run the research graph.
+    
+    Args:
+        query: The research query.
+        runtime: The graph runtime context.
+        hitl_input_provider: Optional provider for HITL input.
+        distributed: If True, dispatch to Celery worker (blocks until complete).
+    """
+    if distributed:
+        from graph.distributed import execute_research_task
+        
+        print(f"Dispatching distributed task for query: {query}")
+        # Dispatch task to Celery
+        # We pass the minimal necessary state: query and tenant_id
+        task = execute_research_task.delay(
+            query=query, 
+            run_id=None, 
+            tenant_id=runtime.config.tenant_id
+        )
+        
+        print(f"Task dispatched (ID: {task.id}). Waiting for results...")
+        try:
+            # Wait for result with a timeout (e.g., 300 seconds)
+            result_dict = task.get(timeout=300)
+            
+            # Reconstruct a partial ResearchState from the result to satisfy the return type
+            # The result_dict is a dumped implementation of ResearchResult
+            
+            # We need to map ResearchResult back to ResearchState structure if possible,
+            # or minimally provide what's needed.
+            # ResearchResult has: run_id, query, final_report, citations, eval_result, etc.
+            
+            return {
+                "run_id": result_dict.get("run_id", "distributed-run"),
+                "query": result_dict.get("query", query),
+                "status": result_dict.get("status", "completed"),
+                "final_report": result_dict.get("final_report", ""),
+                "citations": result_dict.get("citations", []),
+                "eval_result": result_dict.get("eval_result", {}),
+                "logs": [f"Distributed run completed via Celery task {task.id}"],
+                "artifacts_path": result_dict.get("artifacts_path", ""),
+                # Other state fields might be missing, which is a limitation of this shim
+            }
+            
+        except Exception as e:
+            # Handle timeout or execution errors
+            print(f"Distributed task failed: {e}")
+            return {
+                "run_id": "failed-distributed-run",
+                "query": query,
+                "status": "failed",
+                "logs": [f"Distributed task failed: {str(e)}"],
+                "final_report": f"Error during distributed execution: {str(e)}"
+            }
+
+    # Local synchronous execution
     graph = build_graph(runtime, hitl_input_provider=hitl_input_provider)
     initial_state = build_initial_state(query, runtime)
     final_state = graph.invoke(initial_state)
