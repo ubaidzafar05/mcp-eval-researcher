@@ -8,6 +8,8 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
+.env
+.env.compose
 
 # Runtime artifacts
 outputs/
@@ -18,4 +20,3 @@ data/chroma/
 .DS_Store
 Thumbs.db
 .vscode/
-

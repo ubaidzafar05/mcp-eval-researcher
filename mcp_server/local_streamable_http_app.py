@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from mcp.server.auth.settings import AuthSettings
 from mcp.server.fastmcp import FastMCP
 
 from core.config import load_config
@@ -9,12 +10,17 @@ from mcp_server.security import build_token_verifier, validate_http_security
 _config = load_config()
 validate_http_security(_config)
 _verifier = build_token_verifier(_config)
+_auth = None
+if _verifier is not None:
+    base_url = f"http://{_config.mcp_http_host}:{_config.mcp_http_port_local}"
+    _auth = AuthSettings(issuer_url=base_url, resource_server_url=base_url)
 app = FastMCP(
     "local-mcp-http",
     host=_config.mcp_http_host,
     port=_config.mcp_http_port_local,
     streamable_http_path="/mcp",
     token_verifier=_verifier,
+    auth=_auth,
 )
 _server = LocalMCPServer(_config)
 
@@ -45,4 +51,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

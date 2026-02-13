@@ -10,11 +10,12 @@ import sys
 import threading
 import time
 from collections.abc import Callable
-from contextlib import AbstractAsyncContextManager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
+import httpx
 from mcp.client.session import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 from mcp.client.streamable_http import streamable_http_client
@@ -49,9 +50,14 @@ def _decode_call_result(result: Any) -> Any:
     if getattr(result, "isError", False):
         raise RuntimeError(f"MCP tool returned error: {result}")
 
+    def _unwrap(value: Any) -> Any:
+        if isinstance(value, dict) and "result" in value and len(value) == 1:
+            return value["result"]
+        return value
+
     structured = getattr(result, "structuredContent", None)
     if structured is not None:
-        return structured
+        return _unwrap(structured)
 
     content = getattr(result, "content", None) or []
     texts: list[str] = []
@@ -64,10 +70,23 @@ def _decode_call_result(result: Any) -> Any:
     if len(texts) == 1:
         value = texts[0]
         try:
-            return json.loads(value)
+            return _unwrap(json.loads(value))
         except Exception:  # noqa: BLE001
             return value
     return texts
+
+
+@asynccontextmanager
+async def _streamable_http_context(
+    url: str,
+    *,
+    headers: dict[str, str] | None,
+    timeout_seconds: int,
+):
+    timeout = max(1, timeout_seconds)
+    async with httpx.AsyncClient(headers=headers or None, timeout=timeout) as http_client:
+        async with streamable_http_client(url, http_client=http_client) as context:
+            yield context
 
 
 class _ServerProcess:
@@ -272,11 +291,19 @@ class TransportRuntime:
         if client_token:
             headers["Authorization"] = f"Bearer {client_token}"
         self.web_session = _ManagedSession(
-            context_factory=lambda: streamable_http_client(web_url, headers=headers or None),
+            context_factory=lambda: _streamable_http_context(
+                web_url,
+                headers=headers or None,
+                timeout_seconds=config.mcp_call_timeout_seconds,
+            ),
             call_timeout_seconds=config.mcp_call_timeout_seconds,
         )
         self.local_session = _ManagedSession(
-            context_factory=lambda: streamable_http_client(local_url, headers=headers or None),
+            context_factory=lambda: _streamable_http_context(
+                local_url,
+                headers=headers or None,
+                timeout_seconds=config.mcp_call_timeout_seconds,
+            ),
             call_timeout_seconds=config.mcp_call_timeout_seconds,
         )
         self.web_endpoint = web_url
@@ -364,4 +391,3 @@ class TransportRuntime:
             self.web_process.close()
         if self.local_process is not None:
             self.local_process.close()
-

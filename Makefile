@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: test lint export-requirements check-requirements preflight
+.PHONY: test lint export-requirements check-requirements preflight compose-validate
 
 test:
 	$(PYTHON) -m pytest -q -m "not stress"
@@ -17,3 +17,5 @@ check-requirements:
 preflight:
 	$(PYTHON) -m scripts.preflight_git_identity
 
+compose-validate:
+	docker compose config

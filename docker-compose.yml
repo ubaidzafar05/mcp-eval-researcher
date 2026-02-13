@@ -1,0 +1,90 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cloud-hive-app
+    env_file:
+      - .env.compose
+    environment:
+      MCP_MODE: transport
+      MCP_TRANSPORT: streamable-http
+      MCP_HTTP_EXTERNAL: "true"
+      MCP_HTTP_WEB_URL: http://web-mcp-http:8001/mcp
+      MCP_HTTP_LOCAL_URL: http://local-mcp-http:8002/mcp
+      METRICS_ENABLED: "true"
+      METRICS_HOST: 0.0.0.0
+      METRICS_PORT: "9010"
+    ports:
+      - "8080:8080"
+      - "9010:9010"
+    depends_on:
+      web-mcp-http:
+        condition: service_healthy
+      local-mcp-http:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  web-mcp-http:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cloud-hive-web-mcp
+    env_file:
+      - .env.compose
+    environment:
+      MCP_HTTP_HOST: 0.0.0.0
+      MCP_HTTP_PORT_WEB: "8001"
+      MCP_ALLOW_INSECURE_HTTP: "false"
+      MCP_ALLOW_EXTERNAL_BIND: "true"
+    command: ["python", "-m", "mcp_server.web_streamable_http_app"]
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import socket; s=socket.socket(); s.settimeout(2); s.connect(('127.0.0.1',8001)); s.close()",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 6
+
+  local-mcp-http:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cloud-hive-local-mcp
+    env_file:
+      - .env.compose
+    environment:
+      MCP_HTTP_HOST: 0.0.0.0
+      MCP_HTTP_PORT_LOCAL: "8002"
+      MCP_ALLOW_INSECURE_HTTP: "false"
+      MCP_ALLOW_EXTERNAL_BIND: "true"
+    command: ["python", "-m", "mcp_server.local_streamable_http_app"]
+    ports:
+      - "8002:8002"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import socket; s=socket.socket(); s.settimeout(2); s.connect(('127.0.0.1',8002)); s.close()",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 6

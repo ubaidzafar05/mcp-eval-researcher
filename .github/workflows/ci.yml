@@ -54,3 +54,14 @@ jobs:
 
       - name: Requirements sync check
         run: poetry run python -m scripts.check_requirements_sync
+
+      - name: Docker Compose config validation (non-blocking)
+        continue-on-error: true
+        run: |
+          if command -v docker >/dev/null 2>&1; then
+            cp .env.compose.example .env.compose
+            docker compose version
+            docker compose config
+          else
+            echo "::warning::Docker is unavailable; skipping docker compose config validation."
+          fi
