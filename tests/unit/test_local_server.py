@@ -17,5 +17,6 @@ def test_list_project_files_excludes_runtime_and_venv_dirs(tmp_path: Path):
     excluded.write_text("print('skip')", encoding="utf-8")
 
     files = server.list_project_files("*.py")
-    assert "src\\keep.py" in files
-    assert ".venv\\ignored.py" not in files
+    normalized = {item.replace("\\", "/") for item in files}
+    assert "src/keep.py" in normalized
+    assert ".venv/ignored.py" not in normalized

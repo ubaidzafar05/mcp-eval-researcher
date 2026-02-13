@@ -96,6 +96,16 @@ poetry run python -m scripts.export_requirements
 poetry run python -m scripts.check_requirements_sync
 ```
 
+## Local Smoke Validation
+Run local transport-level smoke checks (no GitHub dependency):
+```bash
+poetry run python -m scripts.local_stack_smoke
+```
+or:
+```bash
+make smoke-local
+```
+
 ## CI
 - PR/Push workflow: `.github/workflows/ci.yml`
   - identity preflight

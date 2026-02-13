@@ -1,6 +1,6 @@
 PYTHON ?= python
 
-.PHONY: test lint export-requirements check-requirements preflight compose-validate
+.PHONY: test lint export-requirements check-requirements preflight compose-validate smoke-local
 
 test:
 	$(PYTHON) -m pytest -q -m "not stress"
@@ -19,3 +19,6 @@ preflight:
 
 compose-validate:
 	docker compose config
+
+smoke-local:
+	$(PYTHON) -m scripts.local_stack_smoke
