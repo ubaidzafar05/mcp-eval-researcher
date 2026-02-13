@@ -111,6 +111,8 @@ class RunConfig(BaseModel):
     metrics_enabled: bool = False
     metrics_host: str = "127.0.0.1"
     metrics_port: int = 9010
+    otel_enabled: bool = False
+    otel_endpoint: str = "http://localhost:4317"
     expected_github_owner: str = "UbaidZafar"
     tenant_id: str = "default"
     tenant_org_id: str = "default-org"

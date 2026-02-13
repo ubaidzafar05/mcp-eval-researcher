@@ -1,0 +1,16 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: 'cloud-hive-app'
+    static_configs:
+      - targets: ['host.docker.internal:8000']
+        labels:
+          service: 'api'
+
+  - job_name: 'celery-worker'
+    static_configs:
+      # Celery doesn't expose metrics by default without an exporter, 
+      # but we'll prepare the scrape config for when we add celery-exporter or similar.
+      # For now, this might fail or we point to the app's prometheus client registry.
+      - targets: ['host.docker.internal:9010'] 

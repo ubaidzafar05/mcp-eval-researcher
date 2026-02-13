@@ -62,10 +62,14 @@ docker run -d -p 6379:6379 redis:alpine
 poetry run celery -A graph.distributed worker --loglevel=info
 ```
 
-## Observability
-- **Prometheus Metrics**: `http://localhost:9010/metrics`
-- **LangSmith Tracing**: Enable via `LANGSMITH_API_KEY`.
-- **Logs**: Structured logs in `logs/` directory.
+## Observability (Phase 9)
+- **Prometheus**: Metrics at `http://localhost:9090`.
+- **Grafana**: Dashboards at `http://localhost:3000` (user: admin, pass: admin).
+- **Jaeger**: Traces at `http://localhost:16686`.
+
+To enable full observability:
+1. Ensure `docker-compose.yml` services are running.
+2. Set `OTEL_ENABLED=True` in `.env` (or `RunConfig`).
 
 ## Testing
 Run the test suite, including new integration tests for routing and planning:
