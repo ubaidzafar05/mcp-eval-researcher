@@ -5,7 +5,7 @@ from typing import Literal
 from core.models import RunConfig
 
 ModelProvider = Literal["anthropic", "openai", "groq", "local"]
-TaskType = Literal["synthesis", "correction", "evaluation"]
+TaskType = Literal["synthesis", "correction", "evaluation", "planning"]
 
 
 class ModelRouter:

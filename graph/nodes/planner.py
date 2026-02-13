@@ -5,6 +5,7 @@ import re
 from core.models import TaskSpec
 from graph.runtime import GraphRuntime
 from graph.state import ResearchState
+from agents.planner import generate_plan
 
 
 def _should_use_firecrawl(query: str) -> bool:
@@ -23,6 +24,7 @@ def _should_use_firecrawl(query: str) -> bool:
 
 
 def _build_tasks(query: str, max_tasks: int) -> list[TaskSpec]:
+    # Deprecated: usage moved to fallback in planner_node
     firecrawl_needed = _should_use_firecrawl(query)
     tasks = [
         TaskSpec(
@@ -54,7 +56,34 @@ def _build_tasks(query: str, max_tasks: int) -> list[TaskSpec]:
 def create_planner_node(runtime: GraphRuntime):
     def planner_node(state: ResearchState) -> dict:
         query = state["query"]
-        tasks = _build_tasks(query, runtime.config.max_tasks)
+        max_tasks = runtime.config.max_tasks
+        
+        tasks = []
+        
+        # Adaptive Planning
+        if runtime.model_router:
+             model_selection = runtime.model_router.select_model(
+                task_type="planning",
+                context_size=0,
+                latency_budget_ms=3000,
+                tenant_tier="default" # Could take from state
+            )
+             try:
+                 client = runtime.get_llm_client(model_selection.provider)
+                 tasks = generate_plan(
+                     query, 
+                     client, 
+                     model_selection.provider, 
+                     model_selection.model_name,
+                     max_tasks
+                 )
+             except Exception:
+                 # Fallback handled below
+                 pass
+        
+        if not tasks:
+            tasks = _build_tasks(query, max_tasks)
+            
         memory_docs = runtime.memory_store.retrieve_similar(query=query, k=3)
         firecrawl_requested = any(task.firecrawl_needed for task in tasks)
         runtime.tracer.event(
