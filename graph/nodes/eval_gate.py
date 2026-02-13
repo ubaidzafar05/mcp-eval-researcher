@@ -6,7 +6,7 @@ from graph.state import ResearchState
 
 
 def create_eval_gate_node(runtime: GraphRuntime):
-    evaluator = DeepEvalNode(runtime.config)
+    evaluator = DeepEvalNode(runtime.config, runtime=runtime)
 
     def eval_gate_node(state: ResearchState) -> dict:
         result = evaluator.evaluate(
