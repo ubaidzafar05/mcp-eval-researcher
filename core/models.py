@@ -46,6 +46,21 @@ class EvalResult(BaseModel):
     reasons: list[str] = Field(default_factory=list)
 
 
+class TenantContext(BaseModel):
+    tenant_id: str = "default"
+    org_id: str = "default-org"
+    user_id: str = "default-user"
+    quota_tier: Literal["free", "pro", "enterprise"] = "free"
+    rate_limits: dict[str, int] = Field(
+        default_factory=lambda: {"queries_per_hour": 60, "tokens_per_day": 200_000}
+    )
+
+
+class ResearchUpdate(BaseModel):
+    stage: Literal["accepted", "planning", "research", "synthesis", "evaluation", "final", "error"]
+    data: dict[str, Any] = Field(default_factory=dict)
+
+
 class RunConfig(BaseModel):
     groq_model: str = "llama-3.3-70b-versatile"
     judge_provider: Literal["groq", "hf", "stub"] = "groq"
@@ -97,6 +112,17 @@ class RunConfig(BaseModel):
     metrics_host: str = "127.0.0.1"
     metrics_port: int = 9010
     expected_github_owner: str = "UbaidZafar"
+    tenant_id: str = "default"
+    tenant_org_id: str = "default-org"
+    tenant_user_id: str = "default-user"
+    tenant_quota_tier: Literal["free", "pro", "enterprise"] = "free"
+    tenant_queries_per_hour: int = 60
+    tenant_tokens_per_day: int = 200_000
+    model_routing_strategy: Literal["adaptive", "cost_optimized", "latency_optimized"] = "adaptive"
+    anthropic_api_key: str | None = None
+    openai_api_key: str | None = None
+    enable_local_llm: bool = False
+    local_llm_endpoint: str | None = None
 
 
 class ResearchResult(BaseModel):
@@ -108,3 +134,4 @@ class ResearchResult(BaseModel):
     low_confidence: bool = False
     status: str = "completed"
     artifacts_path: str = ""
+    tenant_id: str = "default"

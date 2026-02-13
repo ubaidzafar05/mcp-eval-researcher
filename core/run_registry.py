@@ -15,6 +15,7 @@ def _utc_now_iso() -> str:
 @dataclass(slots=True)
 class RunRegistryRecord:
     run_id: str
+    tenant_id: str
     query: str
     status: str
     artifacts_path: str
@@ -25,6 +26,7 @@ class RunRegistryRecord:
     def from_dict(cls, payload: dict) -> RunRegistryRecord:
         return cls(
             run_id=str(payload.get("run_id", "")),
+            tenant_id=str(payload.get("tenant_id", "default")),
             query=str(payload.get("query", "")),
             status=str(payload.get("status", "unknown")),
             artifacts_path=str(payload.get("artifacts_path", "")),
@@ -35,6 +37,7 @@ class RunRegistryRecord:
     def to_dict(self) -> dict:
         return {
             "run_id": self.run_id,
+            "tenant_id": self.tenant_id,
             "query": self.query,
             "status": self.status,
             "artifacts_path": self.artifacts_path,
@@ -74,6 +77,7 @@ def upsert_registry_record(config: RunConfig, result: ResearchResult) -> None:
     records = _read_all_records(path)
     next_record = RunRegistryRecord(
         run_id=result.run_id,
+        tenant_id=result.tenant_id,
         query=result.query,
         status=result.status,
         artifacts_path=result.artifacts_path,
@@ -132,4 +136,5 @@ def load_result_from_artifacts(config: RunConfig, run_id: str) -> ResearchResult
         low_confidence=record.low_confidence,
         status=record.status,
         artifacts_path=str(artifacts_dir),
+        tenant_id=record.tenant_id,
     )

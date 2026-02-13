@@ -48,6 +48,14 @@ poetry run cloud-hive research "Design resilient free-tier AI research systems" 
 - `poetry run cloud-hive resume --run-id <id>`
 - `poetry run cloud-hive stress --suite basic --iterations 10`
 
+## Phase 8 Foundation (Local)
+- Tenant context support and tenant-scoped artifacts: `outputs/<tenant_id>/<run_id>/`
+- Local run registry + resume flow: `data/run_registry.jsonl`
+- Model router scaffold: `agents/model_router.py`
+- Plugin registry scaffold: `mcp_server/plugin_registry.py`
+- Distributed task entrypoint scaffold: `graph/distributed.py`
+- Streaming endpoint scaffold: `POST /research/stream` (SSE)
+
 ## Python API
 ```python
 from core.config import load_config

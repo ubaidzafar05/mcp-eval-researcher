@@ -3,7 +3,7 @@ from __future__ import annotations
 from operator import add
 from typing import Annotated, TypedDict
 
-from core.models import Citation, EvalResult, RetrievedDoc, TaskSpec
+from core.models import Citation, EvalResult, RetrievedDoc, TaskSpec, TenantContext
 
 
 class BaseState(TypedDict):
@@ -15,6 +15,7 @@ class BaseState(TypedDict):
 
 
 class ResearchState(BaseState, total=False):
+    tenant_context: TenantContext
     tasks: list[TaskSpec]
     tavily_docs: Annotated[list[RetrievedDoc], add]
     ddg_docs: Annotated[list[RetrievedDoc], add]

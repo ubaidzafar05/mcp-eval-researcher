@@ -104,6 +104,17 @@ def load_config(overrides: dict[str, Any] | None = None) -> RunConfig:
         "metrics_host": os.getenv("METRICS_HOST", "127.0.0.1"),
         "metrics_port": _env_int("METRICS_PORT", 9010),
         "expected_github_owner": os.getenv("EXPECTED_GITHUB_OWNER", "UbaidZafar"),
+        "tenant_id": os.getenv("TENANT_ID", "default"),
+        "tenant_org_id": os.getenv("TENANT_ORG_ID", "default-org"),
+        "tenant_user_id": os.getenv("TENANT_USER_ID", "default-user"),
+        "tenant_quota_tier": os.getenv("TENANT_QUOTA_TIER", "free"),
+        "tenant_queries_per_hour": _env_int("TENANT_QUERIES_PER_HOUR", 60),
+        "tenant_tokens_per_day": _env_int("TENANT_TOKENS_PER_DAY", 200_000),
+        "model_routing_strategy": os.getenv("MODEL_ROUTING_STRATEGY", "adaptive"),
+        "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),
+        "openai_api_key": os.getenv("OPENAI_API_KEY"),
+        "enable_local_llm": _env_bool("ENABLE_LOCAL_LLM", False),
+        "local_llm_endpoint": os.getenv("LOCAL_LLM_ENDPOINT"),
     }
     if overrides:
         data.update(overrides)

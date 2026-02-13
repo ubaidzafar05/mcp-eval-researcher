@@ -61,6 +61,7 @@ def run_research(query: str, *, config: RunConfig | None = None) -> ResearchResu
         low_confidence=bool(final_state.get("low_confidence", False)),
         status=status,
         artifacts_path=final_state.get("artifacts_path", ""),
+        tenant_id=cfg.tenant_id,
     )
     upsert_registry_record(cfg, result)
     return result

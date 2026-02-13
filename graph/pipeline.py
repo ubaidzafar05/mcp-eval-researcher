@@ -7,7 +7,7 @@ from uuid import uuid4
 
 from langgraph.graph import END, START, StateGraph
 
-from core.models import EvalResult
+from core.models import EvalResult, TenantContext
 from graph.nodes.eval_gate import create_eval_gate_node
 from graph.nodes.hitl import HITLInputProvider, create_hitl_node
 from graph.nodes.planner import create_planner_node
@@ -20,7 +20,29 @@ from graph.runtime import GraphRuntime
 from graph.state import ResearchState
 
 
-def build_initial_state(query: str) -> ResearchState:
+def _build_tenant_context(runtime: GraphRuntime) -> TenantContext:
+    return TenantContext(
+        tenant_id=runtime.config.tenant_id,
+        org_id=runtime.config.tenant_org_id,
+        user_id=runtime.config.tenant_user_id,
+        quota_tier=runtime.config.tenant_quota_tier,
+        rate_limits={
+            "queries_per_hour": runtime.config.tenant_queries_per_hour,
+            "tokens_per_day": runtime.config.tenant_tokens_per_day,
+        },
+    )
+
+
+def _scoped_run_id(run_id: str, tenant_context: TenantContext | None) -> str:
+    if tenant_context is None:
+        return run_id
+    tenant_id = (tenant_context.tenant_id or "").strip()
+    if not tenant_id or tenant_id == "default":
+        return run_id
+    return f"{tenant_id}/{run_id}"
+
+
+def build_initial_state(query: str, runtime: GraphRuntime) -> ResearchState:
     now = datetime.now(tz=UTC).isoformat()
     run_id = f"run-{datetime.now(tz=UTC).strftime('%Y%m%d-%H%M%S')}-{uuid4().hex[:6]}"
     return {
@@ -47,6 +69,7 @@ def build_initial_state(query: str) -> ResearchState:
         "hitl_retry_used": False,
         "metrics": {},
         "artifacts_path": "",
+        "tenant_context": _build_tenant_context(runtime),
     }
 
 
@@ -84,7 +107,9 @@ def create_finalize_node(runtime: GraphRuntime):
     def finalize_node(state: ResearchState) -> dict:
         report = state.get("report_draft", "")
         run_id = state["run_id"]
-        out_file = runtime.mcp_client.call_local_tool("write_report_output", run_id, report)
+        tenant_context = state.get("tenant_context")
+        scoped_run_id = _scoped_run_id(run_id, tenant_context)
+        out_file = runtime.mcp_client.call_local_tool("write_report_output", scoped_run_id, report)
         out_dir = Path(out_file).parent
         citations = [c.model_dump() for c in state.get("citations", [])]
         eval_dump = (state.get("eval_result") or EvalResult()).model_dump()
@@ -192,7 +217,6 @@ def run_graph(
     hitl_input_provider: HITLInputProvider | None = None,
 ) -> ResearchState:
     graph = build_graph(runtime, hitl_input_provider=hitl_input_provider)
-    initial_state = build_initial_state(query)
+    initial_state = build_initial_state(query, runtime)
     final_state = graph.invoke(initial_state)
     return final_state
-

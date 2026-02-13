@@ -158,6 +158,7 @@ def runs(
     cfg = load_config({"interactive_hitl": False})
     records = list_registry_records(cfg, limit=limit)
     table = Table(title="Cloud Hive Local Runs")
+    table.add_column("Tenant")
     table.add_column("Run ID")
     table.add_column("Status")
     table.add_column("Low Confidence")
@@ -165,6 +166,7 @@ def runs(
     table.add_column("Query")
     for item in records:
         table.add_row(
+            item.tenant_id,
             item.run_id,
             item.status,
             str(item.low_confidence),
