@@ -10,7 +10,7 @@ jobs:
   test-and-lint:
     runs-on: ubuntu-latest
     env:
-      EXPECTED_GITHUB_OWNER: UbaidZafar
+      EXPECTED_GITHUB_OWNER: ubaidzafar05
       INTERACTIVE_HITL: "false"
       HITL_MODE: "never"
       JUDGE_PROVIDER: "stub"
