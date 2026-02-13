@@ -119,7 +119,7 @@ services:
     volumes:
       - ./config/grafana/provisioning:/etc/grafana/provisioning
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
     ports:
       - "3000:3000"
     depends_on:
