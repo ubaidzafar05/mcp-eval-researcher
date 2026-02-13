@@ -44,6 +44,8 @@ poetry run cloud-hive research "Design resilient free-tier AI research systems" 
 - `poetry run cloud-hive research "<query>" --mcp-mode auto --mcp-transport stdio|streamable-http`
 - `poetry run cloud-hive doctor`
 - `poetry run cloud-hive eval --run-id <id>`
+- `poetry run cloud-hive runs --limit 20`
+- `poetry run cloud-hive resume --run-id <id>`
 - `poetry run cloud-hive stress --suite basic --iterations 10`
 
 ## Python API
@@ -120,4 +122,7 @@ Each run writes to `outputs/<run_id>/`:
 - `final_report.md`
 - `citations.json`
 - `eval.json`
+
+Run metadata is also stored in:
+- `data/run_registry.jsonl`
 

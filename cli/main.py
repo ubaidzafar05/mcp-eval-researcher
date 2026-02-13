@@ -10,8 +10,9 @@ from rich.table import Table
 
 from core.config import load_config
 from core.identity import check_git_identity
+from core.run_registry import list_registry_records
 from graph.runtime import GraphRuntime
-from main import run_research
+from main import resume_research, run_research
 
 app = typer.Typer(add_completion=False, help="Cloud Hive CLI")
 console = Console()
@@ -125,6 +126,51 @@ def eval(run_id: str = typer.Option(..., help="Run id to inspect eval artifacts.
     table.add_row("citation_coverage", str(data.get("citation_coverage")))
     table.add_row("pass_gate", str(data.get("pass_gate")))
     table.add_row("reasons", ", ".join(data.get("reasons", [])))
+    console.print(table)
+
+
+@app.command()
+def resume(
+    run_id: str = typer.Option(..., help="Run id to restore from local artifacts."),
+    json_output: bool = typer.Option(False, "--json", help="Print JSON output."),
+) -> None:
+    cfg = load_config({"interactive_hitl": False})
+    result = resume_research(run_id=run_id, config=cfg)
+    if json_output:
+        console.print(result.model_dump_json(indent=2))
+        return
+    console.rule(f"Cloud Hive Resume {result.run_id}")
+    console.print(f"[bold]Status:[/bold] {result.status}")
+    console.print(
+        f"[bold]Scores:[/bold] faithfulness={result.eval_result.faithfulness:.2f} "
+        f"relevancy={result.eval_result.relevancy:.2f} "
+        f"citation_coverage={result.eval_result.citation_coverage:.2f}"
+    )
+    console.print(f"[bold]Artifacts:[/bold] {result.artifacts_path}")
+    console.print("\n[bold]Final Report[/bold]\n")
+    console.print(result.final_report)
+
+
+@app.command()
+def runs(
+    limit: int = typer.Option(20, min=1, max=200, help="Maximum runs to display."),
+) -> None:
+    cfg = load_config({"interactive_hitl": False})
+    records = list_registry_records(cfg, limit=limit)
+    table = Table(title="Cloud Hive Local Runs")
+    table.add_column("Run ID")
+    table.add_column("Status")
+    table.add_column("Low Confidence")
+    table.add_column("Updated At")
+    table.add_column("Query")
+    for item in records:
+        table.add_row(
+            item.run_id,
+            item.status,
+            str(item.low_confidence),
+            item.updated_at,
+            item.query[:80],
+        )
     console.print(table)
 
 

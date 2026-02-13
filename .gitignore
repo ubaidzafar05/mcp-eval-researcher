@@ -15,6 +15,7 @@ htmlcov/
 outputs/
 logs/
 data/chroma/
+data/run_registry.jsonl
 
 # OS/editor noise
 .DS_Store

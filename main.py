@@ -7,6 +7,7 @@ from core.config import load_config
 from core.metrics import record_graph_run
 from core.models import Citation, EvalResult, ResearchResult, RunConfig
 from core.retention import cleanup_old_artifacts
+from core.run_registry import load_result_from_artifacts, upsert_registry_record
 from graph.pipeline import run_graph
 from graph.runtime import GraphRuntime
 
@@ -51,7 +52,7 @@ def run_research(query: str, *, config: RunConfig | None = None) -> ResearchResu
         [cfg.output_dir, cfg.logs_dir],
         cfg.retention_days,
     )
-    return ResearchResult(
+    result = ResearchResult(
         run_id=final_state["run_id"],
         query=query,
         final_report=final_state.get("final_report", final_state.get("report_draft", "")),
@@ -61,6 +62,13 @@ def run_research(query: str, *, config: RunConfig | None = None) -> ResearchResu
         status=status,
         artifacts_path=final_state.get("artifacts_path", ""),
     )
+    upsert_registry_record(cfg, result)
+    return result
+
+
+def resume_research(run_id: str, *, config: RunConfig | None = None) -> ResearchResult:
+    cfg = config or load_config()
+    return load_result_from_artifacts(cfg, run_id)
 
 
 if __name__ == "__main__":
