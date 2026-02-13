@@ -1,136 +1,91 @@
-# Cloud Hive v1.2 (Phase 7 Core)
+# Cloud Hive v1.3 (Phase 8 Scalability & Intelligence)
 
-Cloud Hive is a free-tier research engine with LangGraph orchestration, MCP multi-server tooling, deterministic evaluation gates, and production-minded transport controls.
+Cloud Hive is a free-tier research engine with LangGraph orchestration, distributed task execution, dynamic model routing, and adaptive planning.
 
 ## Architecture
-- Graph flow: Planner -> parallel research (Tavily, DDG, selective Firecrawl) -> Synthesizer -> Self-correction -> Eval Gate -> HITL -> Finalize.
-- MCP servers:
+- **Graph flow**: Adaptive Planner -> Parallel Research (Tavily/DDG/Firecrawl) -> Distributed Synthesizer -> Self-correction -> Eval Gate -> HITL -> Finalize.
+- **Distributed Execution**: Celery + Redis for asynchronous task processing.
+- **Model Router**: Dynamic selection of LLMs (Groq, OpenAI, Anthropic) based on task type and complexity.
+- **MCP servers**:
   - `web-mcp` (`mcp_server/web_stdio_app.py`, `mcp_server/web_streamable_http_app.py`)
   - `local-mcp` (`mcp_server/local_stdio_app.py`, `mcp_server/local_streamable_http_app.py`)
-- Runtime transport:
-  - `stdio` (managed child-process MCP sessions)
-  - `streamable-http` (token-auth HTTP MCP sessions)
-  - `auto` mode falls back to in-process adapters when transport startup/calls fail.
 
-## Security Defaults (HTTP Transport)
-- Default bind host is localhost: `MCP_HTTP_HOST=127.0.0.1`.
-- Bearer token is required by default in HTTP mode (`MCP_AUTH_TOKEN`).
-- Non-localhost bind is rejected unless `MCP_ALLOW_EXTERNAL_BIND=true`.
-- Insecure no-token mode requires explicit override: `MCP_ALLOW_INSECURE_HTTP=true`.
+## Key Features (v1.3)
+- **Adaptive Planning**: LLM-generated research plans tailored to query complexity.
+- **Distributed Execution**: Heavy tasks (research, synthesis) offloaded to Celery workers.
+- **Model Routing**: 
+  - **Synthesizer**: Uses high-capacity models (e.g., GPT-4, Claude Opus) for complex reports.
+  - **Evaluator**: Uses fast models (e.g., Llama 3 via Groq) for gating.
+  - **Corrector**: Uses robust models for self-correction.
+- **Tenant Context**: Tier-based quotas and routing strategies (`free`, `pro`, `enterprise`).
 
 ## Quickstart
-1. Install dependencies:
+
+### 1. Install Dependencies
 ```bash
 poetry install
 ```
-2. Copy env template:
+
+### 2. Configure Environment
+Copy `.env.example` to `.env` and configure your keys:
 ```bash
 copy .env.example .env
 ```
-3. Optional identity preflight (Ubaid Zafar account context):
+Key variables:
+- `REDIS_URL`: Redis connection string (default: `redis://localhost:6379/0`)
+- `CELERY_BROKER_URL`: Celery broker (default: `redis://localhost:6379/0`)
+- `GROQ_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`: LLM providers.
+
+### 3. Start Infrastructure (Redis + Workers)
 ```bash
-poetry run python -m scripts.preflight_git_identity
+docker compose up -d redis celery-worker
 ```
-4. Run doctor:
+
+### 4. Run Research
 ```bash
-poetry run cloud-hive doctor
-```
-5. Run research:
-```bash
-poetry run cloud-hive research "Design resilient free-tier AI research systems" --mcp-mode auto --mcp-transport stdio
+poetry run cloud-hive research "Future of AI Agents" --mcp-mode auto
 ```
 
 ## CLI
-- `poetry run cloud-hive research "<query>" --mcp-mode auto --mcp-transport stdio|streamable-http`
-- `poetry run cloud-hive doctor`
-- `poetry run cloud-hive eval --run-id <id>`
-- `poetry run cloud-hive runs --limit 20`
-- `poetry run cloud-hive resume --run-id <id>`
-- `poetry run cloud-hive stress --suite basic --iterations 10`
+- `poetry run cloud-hive research "<query>"`: Start a new research run.
+- `poetry run cloud-hive doctor`: Check system health (including Redis/Celery).
+- `poetry run cloud-hive runs`: List recent runs.
+- `poetry run cloud-hive resume --run-id <id>`: Resume a suspended run.
 
-## Phase 8 Foundation (Local)
-- Tenant context support and tenant-scoped artifacts: `outputs/<tenant_id>/<run_id>/`
-- Local run registry + resume flow: `data/run_registry.jsonl`
-- Model router scaffold: `agents/model_router.py`
-- Plugin registry scaffold: `mcp_server/plugin_registry.py`
-- Distributed task entrypoint scaffold: `graph/distributed.py`
-- Streaming endpoint scaffold: `POST /research/stream` (SSE)
-
-## Python API
-```python
-from core.config import load_config
-from main import run_research
-
-cfg = load_config(
-    {
-        "mcp_mode": "auto",
-        "mcp_transport": "stdio",
-        "judge_provider": "groq",
-    }
-)
-result = run_research("LangGraph retry best practices", config=cfg)
-print(result.final_report)
-```
-
-## Docker Compose Baseline
-1. Copy compose env:
+## Distributed Execution
+To enable distributed execution, ensure Redis is running and workers are started:
 ```bash
-copy .env.compose.example .env.compose
+# Start Redis
+docker run -d -p 6379:6379 redis:alpine
+
+# Start Worker
+poetry run celery -A graph.distributed worker --loglevel=info
 ```
-2. Start stack:
+
+## Observability
+- **Prometheus Metrics**: `http://localhost:9010/metrics`
+- **LangSmith Tracing**: Enable via `LANGSMITH_API_KEY`.
+- **Logs**: Structured logs in `logs/` directory.
+
+## Testing
+Run the test suite, including new integration tests for routing and planning:
+```bash
+poetry run pytest tests/integration/
+```
+
+## Docker Compose
+Full stack deployment:
 ```bash
 docker compose up --build
 ```
-3. Endpoints:
-- API health: `http://localhost:8080/health`
-- API metrics: `http://localhost:8080/metrics`
-- App Prometheus endpoint: `http://localhost:9010/metrics`
+Services:
+- `app`: Main API
+- `celery-worker`: Distributed task worker
+- `redis`: Message broker & cache
+- `web-mcp`: Web search tools
+- `local-mcp`: Local file tools
 
-## Observability
-- Prometheus metrics:
-  - `mcp_call_total{server,tool,transport,status}`
-  - `mcp_call_latency_seconds{server,tool,transport}`
-  - `transport_fallback_total{reason}`
-  - `graph_run_total{status}`
-  - `graph_run_duration_seconds`
-- `doctor` reports transport mode, endpoint health, token readiness, and fallback state.
-- LangSmith tracing remains compatible via `LANGSMITH_API_KEY`.
-
-## Requirements Sync Workflow
-- Export from Poetry:
-```bash
-poetry run python -m scripts.export_requirements
-```
-- Verify sync:
-```bash
-poetry run python -m scripts.check_requirements_sync
-```
-
-## Local Smoke Validation
-Run local transport-level smoke checks (no GitHub dependency):
-```bash
-poetry run python -m scripts.local_stack_smoke
-```
-or:
-```bash
-make smoke-local
-```
-
-## CI
-- PR/Push workflow: `.github/workflows/ci.yml`
-  - identity preflight
-  - `ruff check .`
-  - `pytest -q -m "not stress"`
-  - requirements sync check
-  - `docker compose config` validation (non-blocking)
-- Manual stress workflow: `.github/workflows/stress.yml`
-
-## Artifacts
-Each run writes to `outputs/<run_id>/`:
-- `final_report.md`
-- `citations.json`
-- `eval.json`
-
-Run metadata is also stored in:
-- `data/run_registry.jsonl`
-
+## Development
+- **Linting**: `ruff check .`
+- **Formatting**: `ruff format .`
+- **Type Checking**: `mypy .`
