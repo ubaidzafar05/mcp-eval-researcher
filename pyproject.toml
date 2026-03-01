@@ -20,15 +20,11 @@ packages = [
 python = "^3.11"
 langgraph = "*"
 pydantic = "^2.11.0"
-pydantic-ai = "*"
 mcp = ">=1.0.0"
-deepeval = "*"
 tavily-python = "*"
-langsmith = "*"
 python-dotenv = "*"
 httpx = "*"
 trafilatura = "*"
-pytest = "*"
 rich = "*"
 loguru = "*"
 typer = "^0.16.0"
@@ -36,17 +32,35 @@ chromadb = "^1.0.0"
 fastapi = "^0.116.0"
 uvicorn = "^0.35.0"
 prometheus-client = "^0.22.0"
-celery = "^5.6.2"
-redis = "^7.1.1"
 openai = "^2.20.0"
 anthropic = "^0.79.0"
-opentelemetry-api = "^1.39.1"
-opentelemetry-sdk = "^1.39.1"
-opentelemetry-exporter-otlp = "^1.39.1"
+ddgs = "^9.10.0"
+groq = "^1.0.0"
+huggingface-hub = "^0.34.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
 ruff = "^0.12.0"
+mypy = "^1.19.1"
+
+[tool.poetry.group.distributed.dependencies]
+celery = "^5.6.2"
+redis = "^7.1.1"
+
+[tool.poetry.group.observability.dependencies]
+langsmith = "*"
+opentelemetry-api = "^1.39.1"
+opentelemetry-sdk = "^1.39.1"
+opentelemetry-exporter-otlp = "^1.39.1"
+
+[tool.poetry.group.storage.dependencies]
+alembic = "^1.18.4"
+sqlalchemy = "^2.0.46"
+asyncpg = "^0.31.0"
+
+[tool.poetry.group.eval.dependencies]
+deepeval = "*"
+pydantic-ai = "*"
 
 [tool.poetry.scripts]
 cloud-hive = "cli.main:main"

@@ -3,6 +3,10 @@ from core.config import load_config
 
 def test_transport_config_defaults_are_present():
     cfg = load_config({"interactive_hitl": False})
+    assert cfg.runtime_profile == "minimal"
+    assert cfg.enable_distributed is False
+    assert cfg.enable_observability is False
+    assert cfg.enable_storage is False
     assert cfg.mcp_mode in {"auto", "transport", "inprocess"}
     assert cfg.mcp_transport == "stdio"
     assert "mcp_server.web_stdio_app" in cfg.mcp_web_server_cmd

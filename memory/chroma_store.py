@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import json
 from pathlib import Path
 from typing import Any
@@ -7,7 +8,7 @@ from typing import Any
 from core.models import Citation, RetrievedDoc
 
 try:
-    import chromadb
+    chromadb: Any | None = importlib.import_module("chromadb")
 except Exception:  # noqa: BLE001
     chromadb = None
 
@@ -54,11 +55,14 @@ class ChromaMemoryStore:
         if self.collection is not None:
             try:
                 result = self.collection.query(query_texts=[query], n_results=max(1, k))
-                docs = result.get("documents", [[]])[0]
-                metas = result.get("metadatas", [[]])[0]
+                docs_raw = result.get("documents") or [[]]
+                metas_raw = result.get("metadatas") or [[]]
+                docs = docs_raw[0] if docs_raw else []
+                metas = metas_raw[0] if metas_raw else []
                 out: list[RetrievedDoc] = []
                 for i, text in enumerate(docs):
-                    meta = metas[i] if i < len(metas) else {}
+                    meta_any = metas[i] if i < len(metas) else {}
+                    meta = dict(meta_any) if isinstance(meta_any, dict) else {}
                     out.append(
                         RetrievedDoc(
                             provider="memory",
@@ -102,4 +106,3 @@ class ChromaMemoryStore:
                 )
             )
         return results
-

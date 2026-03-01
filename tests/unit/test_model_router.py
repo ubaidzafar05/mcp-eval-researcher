@@ -3,7 +3,13 @@ from core.config import load_config
 
 
 def test_model_router_enterprise_synthesis_prefers_anthropic():
-    cfg = load_config({"interactive_hitl": False})
+    cfg = load_config(
+        {
+            "interactive_hitl": False,
+            "anthropic_api_key": "test-anthropic-key",
+            "synthesizer_model": None,
+        }
+    )
     router = ModelRouter(cfg)
     provider, model = router.select_model(
         task_type="synthesis",
@@ -16,7 +22,13 @@ def test_model_router_enterprise_synthesis_prefers_anthropic():
 
 
 def test_model_router_latency_optimized_prefers_groq():
-    cfg = load_config({"interactive_hitl": False, "model_routing_strategy": "latency_optimized"})
+    cfg = load_config(
+        {
+            "interactive_hitl": False,
+            "model_routing_strategy": "latency_optimized",
+            "groq_api_key": "test-groq-key",
+        }
+    )
     router = ModelRouter(cfg)
     provider, _ = router.select_model(
         task_type="evaluation",
@@ -33,6 +45,8 @@ def test_model_router_cost_strategy_can_use_local():
             "interactive_hitl": False,
             "model_routing_strategy": "cost_optimized",
             "enable_local_llm": True,
+            "openai_api_key": None,
+            "groq_api_key": None,
         }
     )
     router = ModelRouter(cfg)

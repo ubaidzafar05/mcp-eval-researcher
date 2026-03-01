@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.fastmcp import FastMCP
+from pydantic import AnyHttpUrl, TypeAdapter
 
 from core.config import load_config
 from mcp_server.local_server import LocalMCPServer
@@ -13,7 +14,8 @@ _verifier = build_token_verifier(_config)
 _auth = None
 if _verifier is not None:
     base_url = f"http://{_config.mcp_http_host}:{_config.mcp_http_port_local}"
-    _auth = AuthSettings(issuer_url=base_url, resource_server_url=base_url)
+    valid_base_url = TypeAdapter(AnyHttpUrl).validate_python(base_url)
+    _auth = AuthSettings(issuer_url=valid_base_url, resource_server_url=valid_base_url)
 app = FastMCP(
     "local-mcp-http",
     host=_config.mcp_http_host,

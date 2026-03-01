@@ -4,9 +4,25 @@ import re
 from collections.abc import Iterable
 from hashlib import sha1
 
-import trafilatura
+try:
+    import trafilatura  # type: ignore[import-untyped]
+except Exception:  # noqa: BLE001
+    trafilatura = None
 
 from core.models import RetrievedDoc
+
+
+def optional_dependency_status() -> dict[str, bool]:
+    return {"trafilatura": trafilatura is not None}
+
+
+def startup_reason_codes(*, startup_guard_mode: str = "hybrid") -> list[str]:
+    codes: list[str] = []
+    if trafilatura is None:
+        codes.append("dependency_missing_trafilatura")
+    if startup_guard_mode == "strict" and codes:
+        codes.append("startup_guard_strict_block")
+    return codes
 
 
 def approximate_tokens(text: str) -> int:
@@ -20,9 +36,10 @@ def normalize_whitespace(text: str) -> str:
 
 def clean_html_or_text(raw: str) -> str:
     raw = raw or ""
-    extracted = trafilatura.extract(raw, output_format="txt")
-    if extracted:
-        return normalize_whitespace(extracted)
+    if trafilatura is not None:
+        extracted = trafilatura.extract(raw, output_format="txt")
+        if extracted:
+            return normalize_whitespace(extracted)
     # Fallback when extraction fails.
     text_only = re.sub(r"<[^>]+>", " ", raw)
     return normalize_whitespace(text_only)
@@ -78,4 +95,3 @@ def prune_context_docs(
         if remaining <= 0:
             break
     return cleaned
-

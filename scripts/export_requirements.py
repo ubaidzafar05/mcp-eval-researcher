@@ -25,12 +25,22 @@ def _resolve_poetry_command() -> list[str]:
     return [sys.executable, "-m", "poetry"]
 
 
-def export_requirements(output_path: str = "requirements.txt") -> None:
+def _groups_for_profile(profile: str) -> list[str]:
+    normalized = (profile or "full").strip().lower()
+    if normalized == "minimal":
+        return ["dev"]
+    if normalized == "balanced":
+        return ["dev", "distributed", "storage"]
+    return ["dev", "distributed", "observability", "storage", "eval"]
+
+
+def export_requirements(output_path: str = "requirements.txt", *, profile: str = "full") -> None:
     target = Path(output_path)
+    groups = ",".join(_groups_for_profile(profile))
     cmd = _resolve_poetry_command() + [
         "export",
         "--with",
-        "dev",
+        groups,
         "--without-hashes",
         "--format",
         "requirements.txt",
@@ -42,9 +52,10 @@ def export_requirements(output_path: str = "requirements.txt") -> None:
 
 def main() -> int:
     output = sys.argv[1] if len(sys.argv) > 1 else "requirements.txt"
+    profile = sys.argv[2] if len(sys.argv) > 2 else os.getenv("REQUIREMENTS_PROFILE", "full")
     try:
-        export_requirements(output)
-        print(f"Exported requirements to {output}")
+        export_requirements(output, profile=profile)
+        print(f"Exported requirements to {output} (profile={profile})")
         return 0
     except subprocess.CalledProcessError as exc:
         print(f"Failed to export requirements: {exc}")

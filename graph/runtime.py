@@ -39,7 +39,7 @@ class GraphRuntime:
     def start(self) -> None:
         if self.started:
             return
-        if self.config.metrics_enabled:
+        if self.config.enable_observability and self.config.metrics_enabled:
             ensure_metrics_server(self.config.metrics_host, self.config.metrics_port)
         probe = self.mcp_client.startup_probe()
         if self.config.mcp_mode == "transport" and not probe.transport_active:
@@ -60,15 +60,34 @@ class GraphRuntime:
     def __exit__(self, exc_type, exc, tb) -> None:
         self.close()
 
-    def get_llm_client(self, provider: str):
+    def get_llm_client(self, provider: str, *, request_timeout_seconds: int | None = None):
+        timeout = request_timeout_seconds if request_timeout_seconds and request_timeout_seconds > 0 else None
         if provider == "openai":
             from openai import OpenAI
-            return OpenAI(api_key=self.config.openai_api_key)
+            return OpenAI(api_key=self.config.openai_api_key, timeout=timeout)
         elif provider == "anthropic":
             from anthropic import Anthropic
-            return Anthropic(api_key=self.config.anthropic_api_key)
+            return Anthropic(api_key=self.config.anthropic_api_key, timeout=timeout)
         elif provider == "groq":
             from groq import Groq
-            return Groq(api_key=self.config.groq_api_key)
+            return Groq(api_key=self.config.groq_api_key, timeout=timeout)
+        elif provider == "huggingface":
+            from huggingface_hub import InferenceClient
+            return InferenceClient(
+                model=self.config.huggingface_model,
+                token=self.config.hf_token,
+                timeout=timeout,
+            )
+        elif provider == "openrouter":
+            from openai import OpenAI
+            return OpenAI(
+                api_key=self.config.openrouter_api_key,
+                base_url="https://openrouter.ai/api/v1",
+                timeout=timeout,
+                default_headers={
+                    "HTTP-Referer": "https://github.com/UbaidZafar/mcp-eval-researcher",
+                    "X-Title": "Cloud Hive Research Engine",
+                }
+            )
         else:
             raise ValueError(f"Unsupported provider: {provider}")

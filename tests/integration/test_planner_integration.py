@@ -1,26 +1,30 @@
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
+
+from core.models import RunConfig
 from graph.nodes.planner import create_planner_node
 from graph.runtime import GraphRuntime
-from core.models import RunConfig, TaskSpec
+
 
 @pytest.fixture
 def mock_runtime():
-    config = RunConfig(max_tasks=3)
+    config = RunConfig(max_tasks=3, research_mode="balanced", research_depth="deep")
     runtime = MagicMock(spec=GraphRuntime)
     runtime.config = config
     runtime.model_router = MagicMock()
     runtime.get_llm_client = MagicMock()
     runtime.memory_store = MagicMock()
+    runtime.tracer = MagicMock()
     runtime.memory_store.retrieve_similar.return_value = []
-    
+
     # Mock Select Model
     mock_selection = MagicMock()
     mock_selection.provider = "openai"
     mock_selection.model_name = "gpt-4"
     runtime.model_router.select_model.return_value = mock_selection
-    
+
     return runtime
 
 def test_planner_adaptive(mock_runtime):
@@ -35,21 +39,20 @@ def test_planner_adaptive(mock_runtime):
     }
     """
     mock_runtime.get_llm_client.return_value = mock_client
-    
+
     # Execute
     node = create_planner_node(mock_runtime)
     state = {"query": "complex query", "run_id": "test-run"}
     result = node(state)
-    
+
     # Verify
-    mock_runtime.model_router.select_model.assert_called_with(
-        task_type="planning",
-        context_size=0,
-        latency_budget_ms=3000,
-        tenant_tier="default"
-    )
+    call_kwargs = mock_runtime.model_router.select_model.call_args.kwargs
+    assert call_kwargs["task_type"] == "planning"
+    assert call_kwargs["context_size"] == 0
+    assert call_kwargs["latency_budget_ms"] == 3000
+    assert call_kwargs["tenant_tier"] == "default"
     mock_runtime.get_llm_client.assert_called_with("openai")
-    
+
     tasks = result["tasks"]
     assert len(tasks) == 2
     assert tasks[0].title == "Task 1"
@@ -58,13 +61,13 @@ def test_planner_adaptive(mock_runtime):
 def test_planner_fallback(mock_runtime):
     # Setup Mock LLM Failure
     mock_runtime.get_llm_client.side_effect = Exception("LLM Error")
-    
+
     # Execute
     node = create_planner_node(mock_runtime)
     state = {"query": "complex query", "run_id": "test-run"}
     result = node(state)
-    
-    # Verify Fallback (Default is 3 tasks)
+
+    # Verify fallback task expansion in deep mode.
     tasks = result["tasks"]
-    assert len(tasks) == 3
-    assert tasks[0].title == "Core Facts"
+    assert len(tasks) == 5
+    assert tasks[0].title == "Mechanism and Baseline Understanding"

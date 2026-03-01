@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import sys
 import time
 from pathlib import Path
 
@@ -10,12 +12,30 @@ from rich.table import Table
 
 from core.config import load_config
 from core.identity import check_git_identity
+from core.pruning import optional_dependency_status, startup_reason_codes
 from core.run_registry import list_registry_records
+from core.runtime_profile import dependency_health
 from graph.runtime import GraphRuntime
 from main import resume_research, run_research
 
 app = typer.Typer(add_completion=False, help="Cloud Hive CLI")
 console = Console()
+
+
+def _env_diagnostics() -> dict[str, object]:
+    executable = Path(sys.executable).resolve()
+    poetry_active = bool(os.getenv("POETRY_ACTIVE"))
+    virtual_env = os.getenv("VIRTUAL_ENV", "")
+    repo_venv = (Path.cwd() / ".venv").resolve()
+    using_repo_venv = bool(virtual_env) and Path(virtual_env).resolve() == repo_venv
+    looks_like_poetry_venv = "pypoetry" in str(executable).lower()
+    return {
+        "python_executable": str(executable),
+        "poetry_active": poetry_active,
+        "virtual_env": virtual_env or "unset",
+        "using_repo_venv": using_repo_venv,
+        "looks_like_poetry_venv": looks_like_poetry_venv,
+    }
 
 
 @app.command()
@@ -32,6 +52,11 @@ def research(
         "stdio",
         help="MCP transport: stdio or streamable-http.",
     ),
+    profile: str = typer.Option(
+        "minimal",
+        "--profile",
+        help="Runtime profile: minimal, balanced, or full.",
+    ),
     no_interactive: bool = typer.Option(
         False, "--no-interactive", help="Disable interactive HITL prompts."
     ),
@@ -42,6 +67,7 @@ def research(
             "judge_provider": judge_provider,
             "mcp_mode": mcp_mode,
             "mcp_transport": mcp_transport,
+            "runtime_profile": profile,
             "interactive_hitl": not no_interactive,
         }
     )
@@ -63,16 +89,41 @@ def research(
 
 
 @app.command()
-def doctor() -> None:
-    cfg = load_config({"interactive_hitl": False})
+def doctor(
+    profile: str = typer.Option(
+        "minimal",
+        "--profile",
+        help="Runtime profile: minimal, balanced, or full.",
+    ),
+) -> None:
+    cfg = load_config({"interactive_hitl": False, "runtime_profile": profile})
     with GraphRuntime.from_config(cfg) as runtime:
         probe = runtime.mcp_client.startup_probe()
     identity = check_git_identity(expected_owner=cfg.expected_github_owner)
+    deps = dependency_health(cfg)
+    optional_deps = optional_dependency_status()
+    startup_reasons = startup_reason_codes(startup_guard_mode=cfg.startup_guard_mode)
+    env_diag = _env_diagnostics()
+    distributed = deps["subsystems"]["distributed"]
+    observability = deps["subsystems"]["observability"]
+    storage = deps["subsystems"]["storage"]
 
     table = Table(title="Cloud Hive Doctor")
     table.add_column("Check")
     table.add_column("Value")
     table.add_row("Python", "3.11.x expected")
+    table.add_row("Runtime Profile", cfg.runtime_profile)
+    table.add_row("Startup Guard Mode", cfg.startup_guard_mode)
+    table.add_row("Distributed Enabled", str(cfg.enable_distributed))
+    table.add_row("Observability Enabled", str(cfg.enable_observability))
+    table.add_row("Storage Enabled", str(cfg.enable_storage))
+    table.add_row("Poetry Active", str(env_diag["poetry_active"]))
+    table.add_row("Python Executable", str(env_diag["python_executable"]))
+    table.add_row("Virtual Env", str(env_diag["virtual_env"]))
+    table.add_row("Using Project .venv", str(env_diag["using_repo_venv"]))
+    table.add_row("Looks Like Poetry Env", str(env_diag["looks_like_poetry_venv"]))
+    table.add_row("Optional Deps", json.dumps(optional_deps))
+    table.add_row("Startup Reason Codes", ", ".join(startup_reasons) if startup_reasons else "none")
     table.add_row("Judge Provider", cfg.judge_provider)
     table.add_row("MCP Mode", cfg.mcp_mode)
     table.add_row("MCP Transport", cfg.mcp_transport)
@@ -101,6 +152,18 @@ def doctor() -> None:
     table.add_row("Memory Dir", cfg.memory_dir)
     table.add_row("Metrics Enabled", str(cfg.metrics_enabled))
     table.add_row("Metrics Host:Port", f"{cfg.metrics_host}:{cfg.metrics_port}")
+    table.add_row(
+        "Distributed Ready",
+        f"{distributed['ready']} ({distributed['reason']})",
+    )
+    table.add_row(
+        "Observability Ready",
+        f"{observability['ready']} ({observability['reason']})",
+    )
+    table.add_row(
+        "Storage Ready",
+        f"{storage['ready']} ({storage['reason']})",
+    )
     table.add_row("Identity OK", str(identity.ok))
     table.add_row("Git User", identity.user_name or "unset")
     table.add_row("Git Email", identity.user_email or "unset")
@@ -109,6 +172,16 @@ def doctor() -> None:
     if identity.reasons:
         console.print("\n[bold yellow]Identity warnings[/bold yellow]")
         for reason in identity.reasons:
+            console.print(f"- {reason}")
+    if not env_diag["poetry_active"]:
+        console.print("\n[bold yellow]Runtime warning[/bold yellow]")
+        console.print(
+            "- CLI appears to be running outside `poetry run`. "
+            "Recommended: `poetry run cloud-hive doctor` and `poetry run uvicorn service.api:app --host 127.0.0.1 --port 8080`."
+        )
+    if startup_reasons:
+        console.print("\n[bold yellow]Startup guard diagnostics[/bold yellow]")
+        for reason in startup_reasons:
             console.print(f"- {reason}")
 
 

@@ -1,38 +1,34 @@
-# Implementation Plan - Phase 9: Observability
+# Implementation Plan - Phase 10: Real-time Streaming
 
-The goal is to provide production-grade visibility into the Cloud Hive system using a standard open-source stack.
+The goal is to replace the blocking API endpoint with a true Server-Sent Events (SSE) stream that provides real-time updates on research progress.
 
 ## User Review Required
 
 > [!NOTE]
-> This creates 3 new containers (Prometheus, Grafana, Jaeger). Ensure your Docker host has sufficient memory (~1GB extra).
+> This introduces a new endpoint `GET /research/stream` which will eventually replace `POST /research`.
 
 ## Proposed Changes
 
-### 1. Infrastructure (Docker Compose)
-#### [MODIFY] [docker-compose.yml](file:///c:/pyPractice/mcp-eval-researcher/docker-compose.yml)
-- Add `prometheus` service (port 9090).
-- Add `grafana` service (port 3000).
-- Add `jaeger` service (port 16686 UI, 4317 OTLP).
+### 1. API Layer
+#### [NEW] [mcp_server/sse.py](file:///c:/pyPractice/mcp-eval-researcher/mcp_server/sse.py)
+- Implement an SSE generator that yields events from `graph.astream_events`.
+- Format events as JSON data lines: `data: {...}\n\n`.
 
-### 2. Configuration Files
-#### [NEW] [config/prometheus/prometheus.yml](file:///c:/pyPractice/mcp-eval-researcher/config/prometheus/prometheus.yml)
-- Scrape config for `app`, `web-mcp`, `local-mcp`, `celery-worker`.
+#### [MODIFY] [service/api.py](file:///c:/pyPractice/mcp-eval-researcher/service/api.py)
+- Add `GET /research/stream` endpoint.
+- Integrate with `GraphRuntime`.
 
-#### [NEW] [config/grafana/provisioning/datasources/datasource.yml](file:///c:/pyPractice/mcp-eval-researcher/config/grafana/provisioning/datasources/datasource.yml)
-- Auto-provision Prometheus as a data source.
+### 2. Graph Runtime
+#### [MODIFY] [graph/runtime.py](file:///c:/pyPractice/mcp-eval-researcher/graph/runtime.py)
+- Ensure `stream_events` is exposed and context-aware.
 
-### 3. Application Instrumentation
-#### [MODIFY] [core/observability.py](file:///c:/pyPractice/mcp-eval-researcher/core/observability.py)
-- Integrate `opentelemetry-instrumentation`.
-- Configure OTLP exporter to send traces to Jaeger.
-
-### 4. Verification Plan
+### 3. Verification Plan
 #### Automated Tests
-- Create `tests/integration/test_observability.py`.
-- Verify `/metrics` endpoint is reachable.
-- Verify traces are generated on graph run.
+- Create `tests/integration/test_streaming.py`.
+- Verify events are received in correct order (start -> progress -> token -> end).
 
 #### Manual Verification
-- Open Grafana (http://localhost:3000) and view metrics.
-- Open Jaeger (http://localhost:16686) and view traces for a research run.
+- Use `curl` to consume the stream:
+  ```bash
+  curl -N "http://localhost:8080/research/stream?query=test"
+  ```
