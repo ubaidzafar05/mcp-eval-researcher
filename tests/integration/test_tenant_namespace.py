@@ -7,7 +7,7 @@ def test_tenant_artifacts_are_namespaced():
         {
             "interactive_hitl": False,
             "hitl_mode": "never",
-            "judge_provider": "stub",
+            "judge_provider": "ollama",
             "mcp_mode": "inprocess",
             "tenant_id": "acme",
         }

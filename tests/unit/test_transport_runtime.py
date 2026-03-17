@@ -9,7 +9,7 @@ def test_transport_runtime_start_and_probe():
     cfg = load_config(
         {
             "interactive_hitl": False,
-            "judge_provider": "stub",
+            "judge_provider": "ollama",
             "mcp_web_server_cmd": f"{python} -m mcp_server.web_stdio_app",
             "mcp_local_server_cmd": f"{python} -m mcp_server.local_stdio_app",
         }

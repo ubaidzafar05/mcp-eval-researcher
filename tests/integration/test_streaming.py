@@ -28,3 +28,28 @@ async def test_event_generator_emits_final_payload_and_done():
     assert '"stage": "final"' in payload
     assert '"final_report": "Final report body"' in payload
     assert '"type": "done"' in payload
+
+
+@pytest.mark.asyncio
+async def test_event_generator_emits_final_without_run_id_in_finalize_output():
+    async def mock_events():
+        yield {
+            "event": "on_chain_end",
+            "metadata": {"langgraph_node": "planner"},
+            "data": {"output": {"run_id": "run-abc"}},
+        }
+        yield {
+            "event": "on_chain_end",
+            "metadata": {"langgraph_node": "finalize"},
+            "data": {"output": {"final_report": "Fallback report"}},
+        }
+
+    chunks: list[str] = []
+    async for chunk in event_generator(mock_events()):
+        chunks.append(chunk)
+
+    payload = "".join(chunks)
+    assert '"stage": "final"' in payload
+    assert '"final_report": "Fallback report"' in payload
+    assert '"run_id": "run-abc"' in payload
+    assert '"type": "done"' in payload

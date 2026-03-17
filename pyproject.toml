@@ -5,15 +5,15 @@ description = "Cloud-free cutting-edge research engine with LangGraph, MCP, and 
 authors = ["Cloud Hive Team"]
 readme = "README.md"
 packages = [
-  { include = "agents" },
-  { include = "cli" },
-  { include = "core" },
-  { include = "evals" },
-  { include = "graph" },
-  { include = "memory" },
-  { include = "mcp_server" },
-  { include = "service" },
-  { include = "scripts" }
+  { include = "agents", from = "src" },
+  { include = "cli", from = "src" },
+  { include = "core", from = "src" },
+  { include = "evals", from = "src" },
+  { include = "graph", from = "src" },
+  { include = "memory", from = "src" },
+  { include = "mcp_server", from = "src" },
+  { include = "service", from = "src" },
+  { include = "scripts", from = "src" }
 ]
 
 [tool.poetry.dependencies]
@@ -33,10 +33,8 @@ fastapi = "^0.116.0"
 uvicorn = "^0.35.0"
 prometheus-client = "^0.22.0"
 openai = "^2.20.0"
-anthropic = "^0.79.0"
 ddgs = "^9.10.0"
-groq = "^1.0.0"
-huggingface-hub = "^0.34.0"
+weasyprint = "*"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
@@ -80,6 +78,7 @@ ignore = ["E501"]
 markers = [
   "stress: marks stress tests (excluded from PR CI by default)",
 ]
+pythonpath = ["src"]
 
 [build-system]
 requires = ["poetry-core>=1.9.0"]

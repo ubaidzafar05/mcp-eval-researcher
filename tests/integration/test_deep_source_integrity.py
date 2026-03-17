@@ -28,7 +28,7 @@ def test_mixed_context_only_external_citations(monkeypatch):
         {
             "interactive_hitl": False,
             "hitl_mode": "never",
-            "judge_provider": "stub",
+            "judge_provider": "ollama",
             "mcp_mode": "inprocess",
             "source_policy": "external_only",
             "research_depth": "balanced",
@@ -76,7 +76,7 @@ def test_fail_closed_when_no_external_sources(monkeypatch):
         {
             "interactive_hitl": False,
             "hitl_mode": "never",
-            "judge_provider": "stub",
+            "judge_provider": "ollama",
             "mcp_mode": "inprocess",
             "source_policy": "external_only",
             "no_source_mode": "fail_closed",
@@ -97,7 +97,7 @@ def test_deep_mode_report_meets_multi_page_thresholds(monkeypatch):
         {
             "interactive_hitl": False,
             "hitl_mode": "never",
-            "judge_provider": "stub",
+            "judge_provider": "ollama",
             "mcp_mode": "inprocess",
             "source_policy": "external_only",
             "research_depth": "deep",

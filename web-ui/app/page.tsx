@@ -45,6 +45,11 @@ const DEFAULT_RUNTIME_PROFILE =
   process.env.NEXT_PUBLIC_RUNTIME_PROFILE === "full"
     ? process.env.NEXT_PUBLIC_RUNTIME_PROFILE
     : "minimal";
+const DEFAULT_QUALITY_PROFILE =
+  process.env.NEXT_PUBLIC_QUALITY_PROFILE === "strict" ||
+  process.env.NEXT_PUBLIC_QUALITY_PROFILE === "relaxed"
+    ? process.env.NEXT_PUBLIC_QUALITY_PROFILE
+    : "relaxed";
 const DEFAULT_THEME_MODE: ThemeMode =
   process.env.NEXT_PUBLIC_DEFAULT_THEME === "light" || process.env.NEXT_PUBLIC_DEFAULT_THEME === "dark"
     ? process.env.NEXT_PUBLIC_DEFAULT_THEME
@@ -318,7 +323,7 @@ export default function Home() {
         setReportNotice("Health check failed, but stream retry is in progress.");
       }
 
-      const streamUrl = `${streamBaseUrl}?query=${encodeURIComponent(trimmed)}&execution_mode=${DEFAULT_EXECUTION_MODE}&runtime_profile=${DEFAULT_RUNTIME_PROFILE}`;
+      const streamUrl = `${streamBaseUrl}?query=${encodeURIComponent(trimmed)}&execution_mode=${DEFAULT_EXECUTION_MODE}&runtime_profile=${DEFAULT_RUNTIME_PROFILE}&quality_profile=${DEFAULT_QUALITY_PROFILE}`;
       const eventSource = new EventSource(streamUrl);
       eventSourceRef.current = eventSource;
 
@@ -635,19 +640,25 @@ export default function Home() {
               <h1 className="nova-brand__title">Editorial Control Room</h1>
             </div>
             <div className="nova-topbar__right">
-              <ThemeToggle value={themeMode} onChange={setThemeMode} />
-              <MetricChip tone={backendHealth === "down" ? "error" : "teal"}>
-                {backendHealth === "down" ? <WifiOff className="h-3.5 w-3.5" /> : <Wifi className="h-3.5 w-3.5" />}
-                API {healthLabel}
-              </MetricChip>
-              <MetricChip tone="neutral">{status.label}</MetricChip>
-              <MetricChip tone="neutral">{DEFAULT_EXECUTION_MODE}</MetricChip>
-              <Button type="button" size="sm" variant="outline" onClick={resetWorkspace} disabled={isSearching}>
-                <RefreshCw className="h-3.5 w-3.5" /> Reset
-              </Button>
-              <Button type="button" size="sm" variant="outline" onClick={stopRun} disabled={!isSearching}>
-                <CircleStop className="h-3.5 w-3.5" /> Stop
-              </Button>
+              <div className="nova-topbar__tools">
+                <ThemeToggle value={themeMode} onChange={setThemeMode} />
+              </div>
+              <div className="nova-topbar__meta">
+                <MetricChip tone={backendHealth === "down" ? "error" : "teal"}>
+                  {backendHealth === "down" ? <WifiOff className="h-3.5 w-3.5" /> : <Wifi className="h-3.5 w-3.5" />}
+                  API {healthLabel}
+                </MetricChip>
+                <MetricChip tone="neutral">{status.label}</MetricChip>
+                <MetricChip tone="neutral">{DEFAULT_EXECUTION_MODE}</MetricChip>
+              </div>
+              <div className="nova-topbar__actions">
+                <Button type="button" size="sm" variant="outline" onClick={resetWorkspace} disabled={isSearching}>
+                  <RefreshCw className="h-3.5 w-3.5" /> Reset
+                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={stopRun} disabled={!isSearching}>
+                  <CircleStop className="h-3.5 w-3.5" /> Stop
+                </Button>
+              </div>
             </div>
           </header>
 
@@ -699,7 +710,7 @@ export default function Home() {
 
               <div className="nova-main__body">
                 {finalReport ? (
-                  <ReportView report={finalReport} />
+                  <ReportView report={finalReport} qualityProfile={DEFAULT_QUALITY_PROFILE} />
                 ) : (
                   <Card className="reader-placeholder">
                     <CardHeader className="border-b border-border/70 pb-4">
@@ -752,11 +763,11 @@ export default function Home() {
               </div>
               {intelOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </button>
-            {intelOpen ? (
+            <div className="nova-dock__body-wrapper">
               <div className="nova-dock__body">
-                <LiveStream logs={logs} streamState={streamState} hasFinalReport={Boolean(finalReport)} />
+                <LiveStream logs={logs} streamState={streamState} hasFinalReport={Boolean(finalReport)} nowTick={nowTick} />
               </div>
-            ) : null}
+            </div>
           </section>
 
           <footer className="nova-footer panel-enter">
@@ -853,7 +864,7 @@ export default function Home() {
               </>
             }
           >
-            <LiveStream logs={logs} streamState={streamState} hasFinalReport={Boolean(finalReport)} />
+            <LiveStream logs={logs} streamState={streamState} hasFinalReport={Boolean(finalReport)} nowTick={nowTick} />
           </WorkspacePane>
 
           <WorkspacePane
@@ -863,7 +874,7 @@ export default function Home() {
             actions={<MetricChip tone={finalReport ? "teal" : streamState === "error" ? "error" : "neutral"}>{finalReport ? "Report ready" : "Awaiting report"}</MetricChip>}
           >
             {finalReport ? (
-              <ReportView report={finalReport} />
+              <ReportView report={finalReport} qualityProfile={DEFAULT_QUALITY_PROFILE} />
             ) : (
               <Card className="reader-placeholder">
                 <CardHeader className="border-b border-border/70 pb-4">

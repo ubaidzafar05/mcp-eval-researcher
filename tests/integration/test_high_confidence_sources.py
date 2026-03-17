@@ -20,7 +20,7 @@ def test_high_confidence_mode_prioritizes_tier_ab(monkeypatch):
         {
             "interactive_hitl": False,
             "hitl_mode": "never",
-            "judge_provider": "stub",
+            "judge_provider": "ollama",
             "mcp_mode": "inprocess",
             "research_depth": "deep",
             "source_policy": "external_only",

@@ -21,7 +21,7 @@ def test_constrained_actionable_output_when_evidence_is_weak(monkeypatch):
         {
             "interactive_hitl": False,
             "hitl_mode": "never",
-            "judge_provider": "stub",
+            "judge_provider": "ollama",
             "mcp_mode": "inprocess",
             "truth_mode": "balanced",
             "insufficient_evidence_output": "constrained_actionable",

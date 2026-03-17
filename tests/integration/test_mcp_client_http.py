@@ -17,7 +17,7 @@ def _free_port() -> int:
 def _base_http_config(**overrides: object):
     data = {
         "interactive_hitl": False,
-        "judge_provider": "stub",
+        "judge_provider": "ollama",
         "mcp_mode": "auto",
         "mcp_transport": "streamable-http",
         "mcp_http_host": "127.0.0.1",

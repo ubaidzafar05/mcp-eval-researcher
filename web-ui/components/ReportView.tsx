@@ -13,6 +13,7 @@ type ReportReaderMode = "summary" | "full";
 
 interface ReportViewProps {
   report: string;
+  qualityProfile?: "strict" | "relaxed";
 }
 
 interface Section {
@@ -29,6 +30,14 @@ const SUMMARY_SECTION_KEYS = new Set([
   "empirical results",
   "conclusion",
   "executive summary",
+  "background and context",
+  "key questions",
+  "evidence and findings",
+  "deep analysis",
+  "conflicting evidence",
+  "case studies or examples",
+  "limitations of current knowledge",
+  "implications",
   "direct answer",
   "key findings",
   "verified findings register",
@@ -78,9 +87,10 @@ function parseSections(report: string): Section[] {
 
   for (const rawLine of lines) {
     const line = rawLine.trimEnd();
-    if (line.startsWith("## ")) {
+    const headingMatch = line.match(/^#{1,2}\s+(.+)/);
+    if (headingMatch) {
       flush();
-      currentTitle = line.replace(/^##\s+/, "").trim();
+      currentTitle = headingMatch[1].trim();
       currentLines = [];
       continue;
     }
@@ -122,7 +132,18 @@ function answerFirst(sections: Section[]): string {
 }
 
 function renderSources(markdown: string) {
-  const splitMarker = "### Full Source Ledger (Detailed Table)";
+  const markers = [
+    "### Full Source Ledger (Detailed Table)",
+    "### Full Source Ledger (Heuristic Source Types)",
+  ];
+  const splitMarker = markers.find((marker) => markdown.includes(marker));
+  if (!splitMarker) {
+    return (
+      <div className="report-markdown report-chapter-body">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown.trim()}</ReactMarkdown>
+      </div>
+    );
+  }
   const [snapshot, ledger] = markdown.split(splitMarker);
 
   return (
@@ -145,7 +166,7 @@ function renderSources(markdown: string) {
   );
 }
 
-export function ReportView({ report }: ReportViewProps) {
+export function ReportView({ report, qualityProfile }: ReportViewProps) {
   const [mode, setMode] = useState<ReportReaderMode>("summary");
   const [revealing, setRevealing] = useState(true);
 
@@ -205,6 +226,9 @@ export function ReportView({ report }: ReportViewProps) {
   }, [report]);
 
   const constrainedBanner = useMemo(() => {
+    if (qualityProfile === "relaxed") {
+      return null;
+    }
     const lower = report.toLowerCase();
     if (
       !lower.includes("constrained")
@@ -219,7 +243,7 @@ export function ReportView({ report }: ReportViewProps) {
       action:
         "Next step: rerun with stronger primary sources or expanded provider capacity to lift constrained findings.",
     };
-  }, [report]);
+  }, [report, qualityProfile]);
 
   useEffect(() => {
     setRevealing(true);
@@ -280,26 +304,28 @@ export function ReportView({ report }: ReportViewProps) {
       <div className="reader-layout">
         <ChapterNav items={visibleSections.map((section) => ({ slug: section.slug, title: section.title }))} />
 
-        <div className="report-book">
-          {visibleSections.map((section, index) => (
-            <article
-              key={section.slug}
-              id={section.slug}
-              className={`report-chapter ${revealing ? "report-chapter--reveal" : ""}`}
-              style={revealing ? { animationDelay: `${Math.min(index, 8) * 36}ms` } : undefined}
-            >
-              <h2>
-                <BookOpenText className="h-4 w-4" /> {section.title}
-              </h2>
-              {section.title === "Sources Used" ? (
-                renderSources(section.markdown)
-              ) : (
-                <div className="report-markdown report-chapter-body">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{section.markdown}</ReactMarkdown>
-                </div>
-              )}
-            </article>
-          ))}
+        <div className="report-scroll">
+          <div className="report-book">
+            {visibleSections.map((section, index) => (
+              <article
+                key={section.slug}
+                id={section.slug}
+                className={`report-chapter ${revealing ? "report-chapter--reveal" : ""}`}
+                style={revealing ? { animationDelay: `${Math.min(index, 8) * 36}ms` } : undefined}
+              >
+                <h2>
+                  <BookOpenText className="h-4 w-4" /> {section.title}
+                </h2>
+                {section.title === "Sources Used" ? (
+                  renderSources(section.markdown)
+                ) : (
+                  <div className="report-markdown report-chapter-body">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{section.markdown}</ReactMarkdown>
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
         </div>
       </div>
     </div>

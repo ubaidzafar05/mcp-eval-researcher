@@ -20,7 +20,7 @@ def test_firecrawl_selective_trigger(monkeypatch):
         {
             "interactive_hitl": False,
             "hitl_mode": "never",
-            "judge_provider": "stub",
+            "judge_provider": "ollama",
             "mcp_mode": "inprocess",
         }
     )

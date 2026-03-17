@@ -11,13 +11,14 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 # Ensure project root is on the path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from core.claim_extractor import (
     ExtractedClaim,
     _build_source_block,
     _safe_json_parse,
     _validate_claims,
+    build_fallback_extraction,
     extract_claims,
     group_claims_by_topic,
 )
@@ -193,6 +194,15 @@ def test_extract_claims_llm_failure():
     print("  PASS test_extract_claims_llm_failure")
 
 
+def test_build_fallback_extraction_has_claims():
+    """build_fallback_extraction always returns at least one constrained claim."""
+    result = build_fallback_extraction([])
+    assert len(result.claims) >= 1
+    assert result.claims[0].status == "constrained"
+    assert result.fallback_used is True
+    print("  PASS test_build_fallback_extraction_has_claims")
+
+
 def test_group_claims_by_topic():
     """group_claims_by_topic groups claims correctly."""
     claims = [
@@ -224,6 +234,7 @@ def main() -> int:
         test_extract_claims_with_mock_groq,
         test_extract_claims_empty_docs,
         test_extract_claims_llm_failure,
+        test_build_fallback_extraction_has_claims,
         test_group_claims_by_topic,
     ]
 

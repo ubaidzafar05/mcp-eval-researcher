@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { AlertCircle, CheckCircle2, Loader2, Sparkles } from "lucide-react";
 
 import { MetricChip } from "@/components/ui/metric-chip";
@@ -29,6 +29,7 @@ interface LiveStreamProps {
   logs: LogEvent[];
   streamState: "idle" | "connecting" | "running" | "final" | "error";
   hasFinalReport: boolean;
+  nowTick: number;
 }
 
 interface TraceRow {
@@ -268,11 +269,16 @@ function buildPipelineNodes(
   }));
 }
 
-export function LiveStream({ logs, streamState, hasFinalReport }: LiveStreamProps) {
+export function LiveStream({ logs, streamState, hasFinalReport, nowTick }: LiveStreamProps) {
   const monitorRef = useRef<HTMLDivElement>(null);
-  const [nowTick, setNowTick] = useState(Date.now());
-  const [activeSince, setActiveSince] = useState<number | null>(null);
-  const [activeStage, setActiveStage] = useState<PipelineStage | null>(null);
+
+  const activeSince = useMemo(() => {
+    // Find the first non-heartbeat event for the current stage to calculate elapsed time
+    const meaningful = logs.filter((log) => !isHeartbeatStatus(log));
+    if (meaningful.length === 0) return null;
+    const last = meaningful[meaningful.length - 1];
+    return new Date(last.timestamp).getTime(); // Note: relying on robust timestamp if available, or just the first time we see the log in the parent.
+  }, [logs]);
 
   useEffect(() => {
     const viewport = monitorRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
@@ -282,36 +288,9 @@ export function LiveStream({ logs, streamState, hasFinalReport }: LiveStreamProp
     viewport.scrollTop = viewport.scrollHeight;
   }, [logs]);
 
-  useEffect(() => {
-    if (streamState !== "running" && streamState !== "connecting") {
-      return;
-    }
-    const timer = window.setInterval(() => setNowTick(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, [streamState]);
+
 
   const visibleRows = useMemo(() => compactLogs(logs), [logs]);
-
-  const currentStage = useMemo<PipelineStage | null>(() => {
-    const meaningful = logs.filter((log) => !isHeartbeatStatus(log));
-    if (meaningful.length === 0) {
-      return streamState === "idle" ? null : "planning";
-    }
-    const last = meaningful[meaningful.length - 1];
-    return normalizeStage(last);
-  }, [logs, streamState]);
-
-  useEffect(() => {
-    if (!currentStage) {
-      setActiveStage(null);
-      setActiveSince(null);
-      return;
-    }
-    if (currentStage !== activeStage) {
-      setActiveStage(currentStage);
-      setActiveSince(Date.now());
-    }
-  }, [activeStage, currentStage]);
 
   const elapsedSec = activeSince ? Math.max(0, Math.floor((nowTick - activeSince) / 1000)) : undefined;
 
@@ -385,7 +364,6 @@ export function LiveStream({ logs, streamState, hasFinalReport }: LiveStreamProp
                 <div
                   key={`${row.timestamp}-${idx}`}
                   className={`trace-row ${className}`}
-                  style={{ animationDelay: `${Math.min(idx, 26) * 10}ms` }}
                 >
                   <div className="trace-event__meta">
                     <span className="trace-event__time">{row.timestamp}</span>

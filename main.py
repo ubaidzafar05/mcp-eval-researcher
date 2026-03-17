@@ -264,6 +264,7 @@ def _report_meta(
     subtopic_reason_codes = list(state_metrics.get("subtopic_reason_codes", []))
     merge_conflicts_detected = int(state_metrics.get("merge_conflicts_detected", 0))
     editor_input_word_count = int(state_metrics.get("editor_input_word_count", 0))
+    # Downgrade confidence before constructing quality_verdict_details
     if subtopic_count > 0 and subtopic_success_count == 0:
         confidence_verdict = "constrained"
     elif subtopic_failed_count > 0 and confidence_verdict == "high":
@@ -292,7 +293,8 @@ def _report_meta(
         "quality_failure_buckets": quality_failure_buckets,
         "provider_floor_met": provider_floor_met,
     }
-    total_sources = max(1, source_mix["tier_ab_count"] + source_mix["tier_c_count"])
+    tier_unknown = int(tier_counts.get("unknown", 0))
+    total_sources = max(1, source_mix["tier_ab_count"] + source_mix["tier_c_count"] + tier_unknown)
     top_section_metrics = {
         "verified_claims": verified_top_section_claims,
         "ctier_ratio": round(source_mix["tier_c_count"] / total_sources, 3),

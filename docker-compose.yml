@@ -1,4 +1,27 @@
 services:
+  web-ui:
+    profiles: ["core"]
+    build:
+      context: ./web-ui
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+        NEXT_PUBLIC_EXECUTION_MODE: ${NEXT_PUBLIC_EXECUTION_MODE:-inline}
+        NEXT_PUBLIC_RUNTIME_PROFILE: ${NEXT_PUBLIC_RUNTIME_PROFILE:-minimal}
+        NEXT_PUBLIC_QUALITY_PROFILE: ${NEXT_PUBLIC_QUALITY_PROFILE:-relaxed}
+        NEXT_PUBLIC_DEFAULT_THEME: ${NEXT_PUBLIC_DEFAULT_THEME:-dark}
+        NEXT_PUBLIC_UI_VERSION: ${NEXT_PUBLIC_UI_VERSION:-v6}
+        NEXT_PUBLIC_SHOW_RAW_SOURCE_LEDGER_DEFAULT: ${NEXT_PUBLIC_SHOW_RAW_SOURCE_LEDGER_DEFAULT:-false}
+    container_name: cloud-hive-web-ui
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      app:
+        condition: service_healthy
+
   app:
     profiles: ["core"]
     build:
@@ -14,6 +37,22 @@ services:
       MCP_HTTP_EXTERNAL: "true"
       MCP_HTTP_WEB_URL: http://web-mcp-http:8001/mcp
       MCP_HTTP_LOCAL_URL: http://local-mcp-http:8002/mcp
+      MCP_CALL_TIMEOUT_SECONDS: "20"
+      STREAM_STAGE_IDLE_SECONDS_RESEARCH: "600"
+      STREAM_STAGE_IDLE_SECONDS_SYNTHESIS: "1200"
+      AUTO_RETRY_FOR_QUALITY: "false"
+      CORRECTION_LOOP_LIMIT: "0"
+      CONTRADICTION_SCAN_REQUIRED: "false"
+      ROUTER_MODE: "heuristic"
+      ROUTER_MAX_CONTEXT_DEEP: "20000"
+      OLLAMA_MODEL_DEEP: "qwen3:8b"
+      TARGET_REPORT_WORDS_PEAK_MIN: "1400"
+      TARGET_REPORT_WORDS_PEAK_MAX: "2200"
+      MIN_REPORT_WORDS_DEEP: "1200"
+      SUBREPORT_TARGET_WORDS: "300"
+      LLM_REQUEST_TIMEOUT_SECONDS_SYNTHESIS: "180"
+      OLLAMA_ENDPOINT: http://host.docker.internal:11434
+      OLLAMA_MODEL_EMBED: nomic-embed-text
       METRICS_ENABLED: "true"
       METRICS_HOST: 0.0.0.0
       METRICS_PORT: "9010"
@@ -101,6 +140,22 @@ services:
       # Ensure workers can reach MCP servers
       MCP_HTTP_WEB_URL: http://web-mcp-http:8001/mcp
       MCP_HTTP_LOCAL_URL: http://local-mcp-http:8002/mcp
+      MCP_CALL_TIMEOUT_SECONDS: "20"
+      STREAM_STAGE_IDLE_SECONDS_RESEARCH: "600"
+      STREAM_STAGE_IDLE_SECONDS_SYNTHESIS: "1200"
+      AUTO_RETRY_FOR_QUALITY: "false"
+      CORRECTION_LOOP_LIMIT: "0"
+      CONTRADICTION_SCAN_REQUIRED: "false"
+      ROUTER_MODE: "heuristic"
+      ROUTER_MAX_CONTEXT_DEEP: "20000"
+      OLLAMA_MODEL_DEEP: "qwen3:8b"
+      TARGET_REPORT_WORDS_PEAK_MIN: "1400"
+      TARGET_REPORT_WORDS_PEAK_MAX: "2200"
+      MIN_REPORT_WORDS_DEEP: "1200"
+      SUBREPORT_TARGET_WORDS: "300"
+      LLM_REQUEST_TIMEOUT_SECONDS_SYNTHESIS: "180"
+      OLLAMA_ENDPOINT: http://host.docker.internal:11434
+      OLLAMA_MODEL_EMBED: nomic-embed-text
     command: [ "celery", "-A", "graph.distributed", "worker", "--loglevel=info", "--concurrency=2" ]
     depends_on:
       redis:
@@ -109,8 +164,6 @@ services:
         condition: service_healthy
       local-mcp-http:
         condition: service_healthy
-    deploy:
-      replicas: 2
 
   prometheus:
     profiles: ["observability"]

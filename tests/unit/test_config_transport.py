@@ -2,7 +2,7 @@ from core.config import load_config
 
 
 def test_transport_config_defaults_are_present():
-    cfg = load_config({"interactive_hitl": False})
+    cfg = load_config({"interactive_hitl": False, "mcp_transport": "stdio"})
     assert cfg.runtime_profile == "minimal"
     assert cfg.enable_distributed is False
     assert cfg.enable_observability is False

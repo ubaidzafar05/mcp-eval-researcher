@@ -12,7 +12,7 @@ def test_no_results_degrades_gracefully(monkeypatch, tmp_path):
             "output_dir": str(tmp_path / "outputs"),
             "logs_dir": str(tmp_path / "logs"),
             "data_dir": str(tmp_path / "data"),
-            "judge_provider": "stub",
+            "judge_provider": "ollama",
             "mcp_mode": "inprocess",
         }
     )

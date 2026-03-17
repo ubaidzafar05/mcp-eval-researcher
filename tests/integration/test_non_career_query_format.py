@@ -20,7 +20,7 @@ def test_non_career_query_uses_domain_agnostic_structure(monkeypatch):
         {
             "interactive_hitl": False,
             "hitl_mode": "never",
-            "judge_provider": "stub",
+            "judge_provider": "ollama",
             "mcp_mode": "inprocess",
             "research_depth": "deep",
             "source_policy": "external_only",

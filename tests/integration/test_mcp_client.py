@@ -11,7 +11,7 @@ def test_mcp_client_auto_uses_transport():
     cfg = load_config(
         {
             "interactive_hitl": False,
-            "judge_provider": "stub",
+            "judge_provider": "ollama",
             "mcp_mode": "auto",
             "mcp_web_server_cmd": f"{python} -m mcp_server.web_stdio_app",
             "mcp_local_server_cmd": f"{python} -m mcp_server.local_stdio_app",
@@ -32,8 +32,9 @@ def test_mcp_client_auto_falls_back_when_transport_start_fails():
     cfg = load_config(
         {
             "interactive_hitl": False,
-            "judge_provider": "stub",
+            "judge_provider": "ollama",
             "mcp_mode": "auto",
+            "mcp_transport": "stdio",
             "mcp_web_server_cmd": "python -m module_that_does_not_exist",
             "mcp_local_server_cmd": "python -m module_that_does_not_exist",
         }
@@ -53,8 +54,9 @@ def test_mcp_client_transport_mode_fails_if_transport_unavailable():
     cfg = load_config(
         {
             "interactive_hitl": False,
-            "judge_provider": "stub",
+            "judge_provider": "ollama",
             "mcp_mode": "transport",
+            "mcp_transport": "stdio",
             "mcp_web_server_cmd": "python -m module_that_does_not_exist",
             "mcp_local_server_cmd": "python -m module_that_does_not_exist",
         }

@@ -6,7 +6,7 @@ from evals.deepeval_node import DeepEvalNode
 def test_eval_gate_threshold_logic():
     cfg = load_config(
         {
-            "judge_provider": "stub",
+            "judge_provider": "ollama",
             "faithfulness_threshold": 0.7,
             "relevancy_threshold": 0.7,
             "citation_threshold": 0.85,

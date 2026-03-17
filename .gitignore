@@ -12,11 +12,19 @@ htmlcov/
 .env
 .env.compose
 
+# Logs (runtime artifacts)
+*.log
+*.log.*
+
 # Runtime artifacts
 outputs/
 logs/
 data/chroma/
 data/run_registry.jsonl
+
+# Local-only docs/specs (not published)
+docs/
+specs/
 
 # OS/editor noise
 .DS_Store

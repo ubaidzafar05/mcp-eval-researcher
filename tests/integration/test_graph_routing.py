@@ -39,7 +39,7 @@ def test_graph_completes_happy_path():
         {
             "interactive_hitl": False,
             "hitl_mode": "never",
-            "judge_provider": "stub",
+            "judge_provider": "ollama",
             "mcp_mode": "inprocess",
             "research_depth": "balanced",
         }
@@ -60,7 +60,7 @@ def test_graph_enters_low_confidence_after_retry_limit():
             "relevancy_threshold": 0.99,
             "citation_threshold": 0.99,
             "correction_loop_limit": 1,
-            "judge_provider": "stub",
+            "judge_provider": "ollama",
             "mcp_mode": "inprocess",
             "research_depth": "balanced",
         }

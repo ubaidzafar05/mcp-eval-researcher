@@ -10,16 +10,16 @@ The goal is to replace the blocking API endpoint with a true Server-Sent Events 
 ## Proposed Changes
 
 ### 1. API Layer
-#### [NEW] [mcp_server/sse.py](file:///c:/pyPractice/mcp-eval-researcher/mcp_server/sse.py)
+#### [NEW] [`src/mcp_server/sse.py`](src/mcp_server/sse.py)
 - Implement an SSE generator that yields events from `graph.astream_events`.
 - Format events as JSON data lines: `data: {...}\n\n`.
 
-#### [MODIFY] [service/api.py](file:///c:/pyPractice/mcp-eval-researcher/service/api.py)
+#### [MODIFY] [`src/service/api.py`](src/service/api.py)
 - Add `GET /research/stream` endpoint.
 - Integrate with `GraphRuntime`.
 
 ### 2. Graph Runtime
-#### [MODIFY] [graph/runtime.py](file:///c:/pyPractice/mcp-eval-researcher/graph/runtime.py)
+#### [MODIFY] [`src/graph/runtime.py`](src/graph/runtime.py)
 - Ensure `stream_events` is exposed and context-aware.
 
 ### 3. Verification Plan

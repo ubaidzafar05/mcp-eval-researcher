@@ -3,10 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node --no-deprecation ./node_modules/next/dist/bin/next dev",
+    "dev": "node ./scripts/check-node.js",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
+  },
+  "engines": {
+    "node": ">=20 <23"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.8",
@@ -32,8 +35,10 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.1.4",
-    "lightningcss-win32-x64-msvc": "^1.31.1",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "optionalDependencies": {
+    "lightningcss-darwin-arm64": "^1.32.0"
   }
 }

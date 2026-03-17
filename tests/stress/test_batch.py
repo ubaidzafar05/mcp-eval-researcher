@@ -12,7 +12,7 @@ def test_stress_batch_basic():
         {
             "interactive_hitl": False,
             "hitl_mode": "never",
-            "judge_provider": "stub",
+            "judge_provider": "ollama",
             "mcp_mode": "inprocess",
         }
     )

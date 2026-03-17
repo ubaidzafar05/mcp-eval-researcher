@@ -7,8 +7,8 @@ Cloud Hive is a free-tier research engine with LangGraph orchestration, distribu
 - **Distributed Execution**: Celery + Redis for asynchronous task processing.
 - **Model Router**: Dynamic selection of LLMs (Groq, OpenAI, Anthropic) based on task type and complexity.
 - **MCP servers**:
-  - `web-mcp` (`mcp_server/web_stdio_app.py`, `mcp_server/web_streamable_http_app.py`)
-  - `local-mcp` (`mcp_server/local_stdio_app.py`, `mcp_server/local_streamable_http_app.py`)
+  - `web-mcp` (`src/mcp_server/web_stdio_app.py`, `src/mcp_server/web_streamable_http_app.py`)
+  - `local-mcp` (`src/mcp_server/local_stdio_app.py`, `src/mcp_server/local_streamable_http_app.py`)
 
 ## Runtime Profiles
 Cloud Hive now defaults to **minimal core** for reliability and lower local overhead.
@@ -75,6 +75,13 @@ These defaults prioritize provenance and analyst-grade structure over generic na
 
 ## Quickstart
 
+### Repository Layout
+- Python packages live under `src/` and resolve via `PYTHONPATH=src`.
+- The web UI remains in `web-ui/`.
+- Runtime artifacts:
+  - App logs write to `logs/` (e.g. `logs/cloud_hive.log`).
+  - Ad-hoc redirected logs (e.g. `api.log`) should not live in repo root; use `make clean-artifacts` to move them into `logs/legacy/`.
+
 ### 1. Install Dependencies
 ```bash
 poetry install
@@ -118,6 +125,16 @@ Copy `.env.example` to `.env` and configure your keys:
 copy .env.example .env
 ```
 Key variables:
+### Ollama Multi-Model Routing
+- `OLLAMA_MODEL_FAST` (default `qwen2.5-coder:1.5b`)
+- `OLLAMA_MODEL_PRIMARY` (default `qwen3:8b`)
+- `OLLAMA_MODEL_DEEP` (default `deepseek-r1:14b`)
+- `OLLAMA_MODEL_EMBED` (default `nomic-embed-text`)
+- `ROUTER_MODE` (`heuristic|llm|hybrid`, default `llm`)
+- `ROUTER_MODEL` (default `qwen2.5-coder:1.5b`)
+- `ROUTER_ESCALATION_THRESHOLD` (default `0.70`)
+- `ROUTER_MAX_CONTEXT_DEEP` (default `6000`)
+- `ROUTER_ALLOW_DEEP_PARALLEL` (default `false`)
 - `REDIS_URL`: Redis connection string (default: `redis://localhost:6379/0`)
 - `CELERY_BROKER_URL`: Celery broker (default: `redis://localhost:6379/0`)
 - `GROQ_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`: LLM providers.

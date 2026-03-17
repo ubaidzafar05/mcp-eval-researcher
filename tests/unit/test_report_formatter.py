@@ -28,8 +28,9 @@ def test_report_formatter_replaces_sources_with_full_rows():
     assert "## Sources Used" in formatted
     assert "## Evidence Confidence Summary" not in formatted
     assert "### Sources Snapshot" in formatted
-    assert "### Full Source Ledger (Detailed Table)" in formatted
-    assert "| Claim | Title | Provider | Tier | Confidence | URL | Evidence |" in formatted
+    # With fix #D, when all citations fit in the snapshot, the full ledger is
+    # correctly suppressed to avoid duplicate source listings.
+    assert "### Full Source Ledger (Detailed Table)" not in formatted
     assert "https://example.com/a" in formatted
     assert "placeholder" not in formatted
 

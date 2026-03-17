@@ -2,6 +2,8 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+This UI requires Node 20–22. Newer versions (like Node 25) are known to hang `next dev`.
+
 First, run the development server:
 
 ```bash
