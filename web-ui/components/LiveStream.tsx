@@ -36,9 +36,9 @@ const STAGE_ORDER: PipelineStage[] = [
 const STAGE_LABEL: Record<PipelineStage, string> = {
   planning: "Plan",
   research: "Research",
-  synthesis: "Synthesize",
-  evaluation: "Evaluate",
-  finalizing: "Finalize",
+  synthesis: "Synth",
+  evaluation: "Eval",
+  finalizing: "Final",
   final: "Done",
 };
 
@@ -282,10 +282,6 @@ export function LiveStream({ logs, streamState, hasFinalReport, nowTick }: LiveS
     [logs, streamState, hasFinalReport, elapsedSec],
   );
 
-  const stagesReached = useMemo(
-    () => new Set(logs.filter((log) => log.type === "status").map((log) => normalizeStage(log))).size,
-    [logs],
-  );
   const branchProgress = useMemo(() => {
     let total = 0;
     let completed = 0;
@@ -311,27 +307,22 @@ export function LiveStream({ logs, streamState, hasFinalReport, nowTick }: LiveS
 
   return (
     <div ref={monitorRef} className="monitor-shell">
+      <PipelineRail nodes={nodes} />
+
       <div className="monitor-meta-row">
         <MetricChip tone="neutral">{logs.length} events</MetricChip>
-        <MetricChip tone="neutral">{stagesReached} stages</MetricChip>
         {branchProgress.total > 0 ? (
           <MetricChip tone="neutral">
-            Branches {branchProgress.completed}/{branchProgress.total}
+            {branchProgress.completed}/{branchProgress.total} branches
           </MetricChip>
         ) : null}
         <MetricChip tone={streamState === "error" ? "error" : streamState === "running" ? "teal" : "amber"}>
-          Active {latestStage}
+          {latestStage}
         </MetricChip>
       </div>
 
-      <PipelineRail nodes={nodes} />
-
-      <div className="monitor-stage-note">
-        <p>Stage transitions are animated and grouped. Repeated token-level events are compacted automatically.</p>
-      </div>
-
       <ScrollArea className="monitor-events">
-        <div className="space-y-2.5 font-mono text-xs">
+        <div className="space-y-2 font-mono text-xs">
           {visibleRows.length === 0 ? (
             <div className="trace-empty">Waiting for execution events...</div>
           ) : (

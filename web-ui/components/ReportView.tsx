@@ -259,13 +259,10 @@ export function ReportView({ report, qualityProfile }: ReportViewProps) {
     <div className="reader-shell">
       <header className="reader-header">
         <div>
-          <p className="reader-header__eyebrow">Editorial report reader</p>
+          <p className="reader-header__eyebrow">Report</p>
           <h2 className="reader-header__title">
-            <FileText className="h-4 w-4" /> Final Research Report
+            <FileText className="h-4 w-4" /> Research Report
           </h2>
-          <p className="reader-header__subtitle">
-            Narrative-first reading flow with chapter cards and collapsible evidence appendix.
-          </p>
         </div>
 
         <div className="reader-header__controls">
@@ -288,7 +285,7 @@ export function ReportView({ report, qualityProfile }: ReportViewProps) {
         <p className="reader-answer__text">{answer}</p>
         <p className="reader-answer__hint">
           {mode === "summary"
-            ? "Decision narrative first. Technical confidence and full source ledger are in Full Deep View."
+            ? "Switch to Full Deep View for technical confidence and source ledger."
             : confidenceBand.detail}
         </p>
       </section>

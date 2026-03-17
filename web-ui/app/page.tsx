@@ -159,21 +159,6 @@ export default function Home() {
     if (backendHealth === "down") return "Unavailable";
     return "Unknown";
   }, [backendHealth]);
-  const branchProgress = useMemo(() => {
-    let total = 0;
-    let completed = 0;
-    for (const log of logs) {
-      const nextTotal = Number(log.subtopic_total ?? 0);
-      const nextCompleted = Number(log.subtopic_completed ?? 0);
-      if (Number.isFinite(nextTotal) && nextTotal > total) {
-        total = nextTotal;
-      }
-      if (Number.isFinite(nextCompleted) && nextCompleted > completed) {
-        completed = nextCompleted;
-      }
-    }
-    return { total, completed: Math.min(completed, total || completed) };
-  }, [logs]);
 
   const effectiveBannerReason = useMemo<RunBannerReason | null>(() => {
     if (bannerReason) {
@@ -303,19 +288,17 @@ export default function Home() {
                 <div>
                   <p className="nova-panel__eyebrow">Command</p>
                   <h2 className="nova-panel__title">Research Command</h2>
-                  <p className="nova-panel__subtitle">Frame the question and orchestrate the run from here.</p>
                 </div>
                 <MetricChip tone={status.tone}>{status.label}</MetricChip>
               </header>
               <div className="nova-panel__body">
                 <ResearchForm onSearch={startRun} isSearching={isSearching} />
               </div>
-              <div className="nova-panel__foot">
-                <p>{status.detail}</p>
-                {shouldShowLiveTimer ? (
-                  <p className="nova-panel__live">Last progress {lastUpdateSeconds}s ago.</p>
-                ) : null}
-              </div>
+              {shouldShowLiveTimer ? (
+                <div className="nova-panel__foot">
+                  <p className="nova-panel__live">Last progress {lastUpdateSeconds}s ago</p>
+                </div>
+              ) : null}
             </section>
 
             <section className="nova-panel nova-panel--monitor panel-enter">
@@ -323,16 +306,6 @@ export default function Home() {
                 <div>
                   <p className="nova-panel__eyebrow">Monitor</p>
                   <h2 className="nova-panel__title">Live Pipeline</h2>
-                  <p className="nova-panel__subtitle">Stage transitions and condensed execution events.</p>
-                </div>
-                <div className="nova-panel__actions">
-                  <MetricChip tone="neutral">{logs.length} events</MetricChip>
-                  {branchProgress.total > 0 ? (
-                    <MetricChip tone="neutral">
-                      Branches {branchProgress.completed}/{branchProgress.total}
-                    </MetricChip>
-                  ) : null}
-                  <MetricChip tone="neutral">{streamState}</MetricChip>
                 </div>
               </header>
               <div className="nova-panel__body nova-panel__body--monitor">
@@ -348,18 +321,11 @@ export default function Home() {
                 <h2 className="nova-report__title">
                   <BookText className="h-4 w-4" /> Research Narrative
                 </h2>
-                <p className="nova-report__subtitle">Summary-first reading flow with chapter navigation and appendix evidence.</p>
               </div>
               <div className="nova-report__chips">
                 <MetricChip tone={finalReport ? "teal" : "neutral"}>
                   {finalReport ? "Report ready" : "Awaiting report"}
                 </MetricChip>
-                <MetricChip tone="neutral">{logs.length} events</MetricChip>
-                {branchProgress.total > 0 ? (
-                  <MetricChip tone="neutral">
-                    Branches {branchProgress.completed}/{branchProgress.total}
-                  </MetricChip>
-                ) : null}
               </div>
             </header>
 
@@ -396,9 +362,8 @@ export default function Home() {
         <footer className="nova-footer panel-enter">
           <MetricChip tone={backendHealth === "down" ? "error" : "teal"}>Backend {healthLabel}</MetricChip>
           <MetricChip tone="neutral">State {status.label}</MetricChip>
-          <MetricChip tone="neutral">Trace {logs.length}</MetricChip>
-          <MetricChip tone="neutral">Report {finalReport ? "Captured" : "Pending"}</MetricChip>
-          <span className="nova-footer__note">Narrative first. Technical confidence stays in appendix by default.</span>
+          <MetricChip tone="neutral">Events {logs.length}</MetricChip>
+          <MetricChip tone="neutral">Report {finalReport ? "Ready" : "Pending"}</MetricChip>
         </footer>
       </div>
     </main>

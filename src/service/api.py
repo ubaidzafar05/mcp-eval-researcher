@@ -3,8 +3,10 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import logging
 import os
 import uuid
+from collections.abc import AsyncIterator
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException
@@ -29,7 +31,27 @@ from service.middleware import (
     SecurityHeadersMiddleware,
 )
 
-app = FastAPI(title="Cloud Hive API", version="0.1.0")
+
+def _validate_startup_env() -> None:
+    """Log warnings for missing critical environment variables at startup."""
+    log = logging.getLogger("cloud_hive.startup")
+    has_any_llm = any(
+        os.getenv(k)
+        for k in ("OLLAMA_ENDPOINT", "GROQ_API_KEY", "OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY")
+    )
+    if not has_any_llm:
+        log.warning("STARTUP: No LLM provider configured")
+    if not os.getenv("TAVILY_API_KEY"):
+        log.warning("STARTUP: TAVILY_API_KEY not set — research limited to DDG-only")
+
+
+@contextlib.asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    _validate_startup_env()
+    yield
+
+
+app = FastAPI(title="Cloud Hive API", version="0.1.0", lifespan=lifespan)
 
 
 _GRAPH_NODE_STAGE: dict[str, str] = {
@@ -1201,35 +1223,6 @@ async def export_pdf(request_body: dict) -> StreamingResponse:
             "Content-Disposition": f'attachment; filename="{run_id}.pdf"',
         },
     )
-
-
-def _validate_startup_env() -> None:
-    """Log warnings for missing critical environment variables at startup."""
-    import logging
-
-    log = logging.getLogger("cloud_hive.startup")
-    warnings: list[str] = []
-
-    has_ollama = bool(os.getenv("OLLAMA_ENDPOINT"))
-    has_groq = bool(os.getenv("GROQ_API_KEY"))
-    has_openrouter = bool(os.getenv("OPENROUTER_API_KEY"))
-    has_openai = bool(os.getenv("OPENAI_API_KEY"))
-    has_anthropic = bool(os.getenv("ANTHROPIC_API_KEY"))
-    if not any([has_ollama, has_groq, has_openrouter, has_openai, has_anthropic]):
-        warnings.append("No LLM provider configured (OLLAMA_ENDPOINT, GROQ_API_KEY, OPENROUTER_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY)")
-
-    has_tavily = bool(os.getenv("TAVILY_API_KEY"))
-    has_ddg = True  # DDG doesn't need a key
-    if not has_tavily:
-        warnings.append("TAVILY_API_KEY not set — research quality may be limited to DDG-only")
-
-    for w in warnings:
-        log.warning("STARTUP: %s", w)
-
-
-@app.on_event("startup")
-async def on_startup() -> None:
-    _validate_startup_env()
 
 
 def main() -> None:
