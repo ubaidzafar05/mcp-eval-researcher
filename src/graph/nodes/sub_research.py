@@ -212,7 +212,7 @@ def _compose_subreport_text(
         if selection.provider == "anthropic":
             resp = client.messages.create(
                 model=selection.model_name,
-                max_tokens=1800,
+                max_tokens=3200,
                 system=SUB_RESEARCH_PROMPT,
                 messages=[{"role": "user", "content": user_msg}],
                 temperature=0.2,
@@ -224,7 +224,7 @@ def _compose_subreport_text(
                     {"role": "system", "content": SUB_RESEARCH_PROMPT},
                     {"role": "user", "content": user_msg},
                 ],
-                max_tokens=1800,
+                max_tokens=3200,
                 temperature=0.2,
             )
             return (resp.choices[0].message.content or "").strip()

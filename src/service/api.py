@@ -22,6 +22,12 @@ from graph.pipeline import build_graph, build_initial_state
 from graph.runtime import GraphRuntime
 from main import run_research
 from mcp_server.sse import event_generator
+from service.middleware import (
+    RateLimitMiddleware,
+    RequestIdMiddleware,
+    RequestLoggingMiddleware,
+    SecurityHeadersMiddleware,
+)
 
 app = FastAPI(title="Cloud Hive API", version="0.1.0")
 
@@ -56,7 +62,16 @@ app.add_middleware(
     allow_origins=_cors_origins(),
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type", "Accept", "X-Request-ID", "Authorization"],
+)
+
+# Production middleware stack (order matters: outermost first)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(RequestIdMiddleware)
+app.add_middleware(
+    RateLimitMiddleware,
+    requests_per_minute=int(os.getenv("API_RATE_LIMIT_RPM", "30")),
 )
 
 
@@ -434,11 +449,11 @@ async def _with_heartbeat(
     stage_idle_seconds: dict[str, int] | None = None,
 ):
     stage_idle_seconds = stage_idle_seconds or {
-        "planning": 120,
-        "research": 180,
+        "planning": 360,
+        "research": 600,
         "synthesis": 900,
-        "evaluation": 180,
-        "finalizing": 180,
+        "evaluation": 420,
+        "finalizing": 300,
     }
 
     def _threshold(stage: str) -> int:
@@ -1188,10 +1203,56 @@ async def export_pdf(request_body: dict) -> StreamingResponse:
     )
 
 
+def _validate_startup_env() -> None:
+    """Log warnings for missing critical environment variables at startup."""
+    import logging
+
+    log = logging.getLogger("cloud_hive.startup")
+    warnings: list[str] = []
+
+    has_ollama = bool(os.getenv("OLLAMA_ENDPOINT"))
+    has_groq = bool(os.getenv("GROQ_API_KEY"))
+    has_openrouter = bool(os.getenv("OPENROUTER_API_KEY"))
+    has_openai = bool(os.getenv("OPENAI_API_KEY"))
+    has_anthropic = bool(os.getenv("ANTHROPIC_API_KEY"))
+    if not any([has_ollama, has_groq, has_openrouter, has_openai, has_anthropic]):
+        warnings.append("No LLM provider configured (OLLAMA_ENDPOINT, GROQ_API_KEY, OPENROUTER_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY)")
+
+    has_tavily = bool(os.getenv("TAVILY_API_KEY"))
+    has_ddg = True  # DDG doesn't need a key
+    if not has_tavily:
+        warnings.append("TAVILY_API_KEY not set — research quality may be limited to DDG-only")
+
+    for w in warnings:
+        log.warning("STARTUP: %s", w)
+
+
+@app.on_event("startup")
+async def on_startup() -> None:
+    _validate_startup_env()
+
+
 def main() -> None:
+    import signal
     import uvicorn
 
-    uvicorn.run("service.api:app", host="0.0.0.0", port=8080, log_level="info")
+    from service.middleware import request_shutdown
+
+    def _handle_signal(signum: int, _frame: object) -> None:
+        import logging
+        logging.getLogger("cloud_hive").info("Received signal %s, starting graceful shutdown", signum)
+        request_shutdown()
+
+    signal.signal(signal.SIGTERM, _handle_signal)
+    signal.signal(signal.SIGINT, _handle_signal)
+
+    uvicorn.run(
+        "service.api:app",
+        host="0.0.0.0",
+        port=8080,
+        log_level="info",
+        timeout_graceful_shutdown=30,
+    )
 
 
 if __name__ == "__main__":

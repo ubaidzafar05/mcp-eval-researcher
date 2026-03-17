@@ -1,18 +1,6 @@
 import type { Metadata } from "next";
-import { Fraunces, JetBrains_Mono, Manrope } from "next/font/google";
+import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-
-const uiFont = Manrope({
-  variable: "--font-ui",
-  subsets: ["latin"],
-  display: "swap",
-});
-
-const displayFont = Fraunces({
-  variable: "--font-display",
-  subsets: ["latin"],
-  display: "swap",
-});
 
 const monoFont = JetBrains_Mono({
   variable: "--font-mono",
@@ -33,7 +21,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${uiFont.variable} ${displayFont.variable} ${monoFont.variable} antialiased`}
+        className={`${monoFont.variable} antialiased`}
       >
         {children}
       </body>

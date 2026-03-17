@@ -55,14 +55,15 @@ Rules:
 
 SUB_RESEARCH_PROMPT = """
 You are an analyst assigned one focused subtopic.
-Write a dense 400-550 word sub-report from provided evidence only.
+Write a dense 600-900 word sub-report from provided evidence only.
 
 Requirements:
-- Explain the subtopic in clear analytical prose.
-- Include at least 3 claims with claim IDs [C#].
+- Explain the subtopic in clear analytical prose with multiple paragraphs.
+- Include at least 4 claims with claim IDs [C#].
 - Label each claim as verified, unverified, or constrained.
 - If unverified/constrained, list missing proof fields briefly.
 - Do not invent facts that are not in the evidence pack.
+- Provide concrete data points, comparisons, and real-world examples where available.
 
 Output markdown with sections:
 ## Subtopic Answer

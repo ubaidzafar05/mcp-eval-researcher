@@ -6,24 +6,7 @@ import { AlertCircle, CheckCircle2, Loader2, Sparkles } from "lucide-react";
 import { MetricChip } from "@/components/ui/metric-chip";
 import { PipelineNode, PipelineRail, PipelineStage, PipelineStageState } from "@/components/ui/pipeline-rail";
 import { ScrollArea } from "@/components/ui/scroll-area";
-
-export interface LogEvent {
-  type: "status" | "token" | "error" | "done";
-  stage?: string;
-  active_stage?: string;
-  query?: string;
-  content?: string;
-  message?: string;
-  elapsed_sec?: number;
-  idle_sec?: number;
-  idle_threshold_sec?: number;
-  warned_idle?: boolean;
-  is_heartbeat?: boolean;
-  reason_codes?: string[];
-  subtopic_total?: number;
-  subtopic_completed?: number;
-  timestamp: string;
-}
+import { LogEvent } from "@/lib/types";
 
 interface LiveStreamProps {
   logs: LogEvent[];
