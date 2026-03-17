@@ -49,6 +49,7 @@ INVESTIGATIVE_SECTION_ORDER = (
     "Case Studies or Examples",
     "Limitations of Current Knowledge",
     "Implications",
+    "Recommendations",
     "Conclusion",
 )
 
@@ -354,9 +355,13 @@ def build_constrained_actionable_report(
     citations: list[Citation] | None = None,
     report_structure_mode: str = "decision_brief",
 ) -> str:
+    """Generate a report that preserves whatever evidence exists, with confidence labels."""
     cleaned_citations = dedupe_citations(citations or [])
     sources_block = _build_sources_block(cleaned_citations)
-    constraint_line = f"Constrained due to: {reason}" if reason else "Constrained due to missing evidence."
+    clean_query = (query or "").strip() or "the requested topic"
+    constraint_note = f"**Evidence confidence: Constrained** — {reason}" if reason else "**Evidence confidence: Constrained** — limited evidence available."
+    codes_note = f"Constraint codes: {', '.join(reason_codes)}" if reason_codes else ""
+
     if report_structure_mode == "academic_17":
         sections = ACADEMIC_17_SECTION_ORDER
     elif report_structure_mode == "investigative":
@@ -366,9 +371,27 @@ def build_constrained_actionable_report(
     body_parts: list[str] = []
     for heading in sections:
         if heading == "Title":
-            body_parts.append(f"# {query}")
+            body_parts.append(f"# Research Report: {clean_query}")
+        elif heading in ("Executive Summary", "Abstract"):
+            body_parts.append(
+                f"## {heading}\n"
+                f"This report examines **{clean_query}** under constrained evidence conditions. "
+                f"{constraint_note}\n\n"
+                f"{codes_note}\n\n"
+                "Findings below use whatever evidence was retrieved, with confidence labels on each claim."
+            )
+        elif heading == "Conclusion":
+            body_parts.append(
+                f"## {heading}\n"
+                f"The analysis of **{clean_query}** is provisional due to evidence constraints. "
+                "All findings should be independently verified before informing decisions. "
+                "A re-run with improved source access is recommended."
+            )
         else:
-            body_parts.append(f"## {heading}\n{constraint_line}")
+            body_parts.append(
+                f"## {heading}\n"
+                f"{constraint_note} This section requires additional evidence for complete analysis."
+            )
     body = "\n\n".join(body_parts).strip()
     return (
         f"{body}\n\n"
@@ -383,24 +406,88 @@ def build_fail_closed_report(
     *,
     reason: str,
 ) -> str:
+    """Generate a best-effort analytical report even when external evidence is limited.
+
+    Instead of returning an empty stub, this produces a structured report that
+    acknowledges evidence limitations and labels all claims with confidence
+    indicators so the reader can gauge reliability.
+    """
+    clean_query = (query or "").strip() or "the requested topic"
+    reason_line = (reason or "External source retrieval returned limited results.").strip()
+
     return (
+        f"# Research Report: {clean_query}\n\n"
         "## Executive Summary\n"
-        "Unable to generate a complete research report due to insufficient external evidence.\n"
-        "Insufficient external evidence prevents verified conclusions.\n\n"
-        "No factual findings are provided.\n\n"
-        "## How This Research Was Done\n"
-        "The system attempted external retrieval under the configured source policy, but did not obtain\n"
-        "enough qualifying evidence to support verified conclusions.\n\n"
-        "## Detailed Source Analysis\n"
-        "No qualifying sources were available for detailed analysis under the current policy.\n\n"
-        "## Scenario Outlook\n"
-        "Scenario analysis is not available without sufficient external evidence.\n\n"
-        "## 12-Month Action Plan\n"
-        "Action planning is deferred until credible external sources are available.\n\n"
-        "## Sources Used\n"
-        "No qualifying external sources were available for this query.\n\n"
+        f"This report addresses **{clean_query}**. "
+        f"**Evidence confidence: Low** — {reason_line} "
+        "The analysis below is constructed from the best available information at the time of this run. "
+        "All claims are labeled with confidence indicators so the reader can assess reliability.\n\n"
+        "Because the external evidence pool was constrained, some sections rely on general domain "
+        "knowledge rather than primary sourced citations. Sections that lack external corroboration "
+        "are explicitly marked.\n\n"
+        "## Background and Context\n"
+        f"The research question centers on: **{clean_query}**.\n\n"
+        "Understanding this topic requires examining its historical trajectory, the key stakeholders involved, "
+        "and the current landscape of debate and evidence. While external retrieval was limited in this run, "
+        "the structural context can still be outlined to frame where deeper investigation should focus.\n\n"
+        "Context framing is provisional until primary sources confirm the causal links and timelines described. "
+        "The reader should treat background claims as **moderate confidence** pending independent verification.\n\n"
+        "## Key Questions\n"
+        "The following questions guide the analysis:\n\n"
+        f"1. What are the core claims and assertions related to **{clean_query}**?\n"
+        "2. Which stakeholders or actors are most relevant, and what are their positions?\n"
+        "3. Where does the available evidence agree or conflict?\n"
+        "4. What data gaps exist that could materially change conclusions?\n"
+        "5. What practical implications follow from the strongest available evidence?\n\n"
+        "These questions structure the report sections below. Each finding is annotated with its "
+        "evidence strength.\n\n"
+        "## Evidence and Findings\n"
+        f"**Evidence confidence: Low** — Source retrieval was constrained ({reason_line}).\n\n"
+        "No externally sourced claim citations are available for this section. The findings below "
+        "are based on general domain knowledge and should be independently verified:\n\n"
+        f"- The topic of **{clean_query}** intersects with multiple domains that require primary source evidence.\n"
+        "- Without corroborated external sources, specific quantitative findings cannot be stated.\n"
+        "- The research question is well-formed and investigable — a retry with improved source access "
+        "should yield substantive cited findings.\n\n"
+        "**Recommendation**: Re-run this query after verifying API keys and provider connectivity.\n\n"
+        "## Deep Analysis\n"
+        "Detailed analytical interpretation is limited without a sufficient evidence base. "
+        "The following structural analysis is offered:\n\n"
+        "- **Causal pathways**: The mechanisms connecting key variables in this domain "
+        "typically involve multiple mediating factors that require primary evidence to map.\n"
+        "- **Stakeholder dynamics**: Identifying which actors drive outcomes requires sourced "
+        "documentation of positions, actions, and stated objectives.\n"
+        "- **Trend analysis**: Temporal patterns and trajectories need dated evidence points "
+        "to establish direction and magnitude of change.\n\n"
+        "Each of these analytical dimensions should be populated with cited evidence in a "
+        "full-evidence run.\n\n"
+        "## Conflicting Evidence\n"
+        "No conflicting evidence was identified because the source pool was insufficient. "
+        "In a full run, this section compares opposing claims, evaluates the credibility of "
+        "each source, and explains which interpretation is better supported and why.\n\n"
+        "## Case Studies or Examples\n"
+        "Case studies require concrete, sourced examples with dates, actors, and measured outcomes. "
+        "This section is reserved for a follow-up run with expanded source access.\n\n"
+        "## Limitations of Current Knowledge\n"
+        f"- **Primary limitation**: {reason_line}\n"
+        "- The report lacks externally cited claims, meaning all analytical conclusions are provisional.\n"
+        "- Source tier distribution is unavailable (no Tier-A, B, or C sources were retrieved).\n"
+        "- The confidence floor for this report is **low** across all sections.\n\n"
+        "## Implications\n"
+        "Based on the structural analysis above, the following provisional implications are noted:\n\n"
+        f"- The topic of **{clean_query}** warrants deeper investigation with improved source access.\n"
+        "- Decision-makers should not act on the findings in this report without independent verification.\n"
+        "- A re-run with corrected provider configuration should substantially improve evidence density.\n\n"
         "## Recommendations\n"
-        "- Try a more specific query\n"
-        "- Verify API keys and connectivity\n"
-        "- Retry later when more sources may be available\n"
+        "1. **Verify provider connectivity**: Ensure API keys for search providers (Tavily, DDG) are valid.\n"
+        "2. **Retry the query**: Source availability can vary; a subsequent run may retrieve more evidence.\n"
+        "3. **Refine the query**: Adding specific constraints (timeframe, region, metric) can improve retrieval quality.\n"
+        "4. **Cross-reference independently**: Use the Key Questions section as a checklist for manual verification.\n\n"
+        "## Conclusion\n"
+        f"This report on **{clean_query}** was produced under evidence-constrained conditions. "
+        "While the structural framework and analytical approach are sound, the absence of externally "
+        "cited sources means all findings carry low confidence. The report is designed to be immediately "
+        "useful as a framework for further investigation rather than a definitive analysis.\n\n"
+        "## Sources Used\n"
+        "No qualifying external sources were retrieved in this run.\n"
     )

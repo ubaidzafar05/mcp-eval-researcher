@@ -37,12 +37,13 @@ def test_report_formatter_replaces_sources_with_full_rows():
 
 def test_fail_closed_report_is_explicitly_non_factual():
     report = build_fail_closed_report("test query", reason="No external sources.")
-    assert "Insufficient external evidence" in report
-    assert "No factual findings are provided" in report
-    assert "## How This Research Was Done" in report
-    assert "## Detailed Source Analysis" in report
-    assert "## Scenario Outlook" in report
-    assert "## 12-Month Action Plan" in report
+    assert "Evidence confidence: Low" in report
+    assert "No external sources" in report
+    assert "## Background and Context" in report
+    assert "## Key Questions" in report
+    assert "## Evidence and Findings" in report
+    assert "## Recommendations" in report
+    assert "## Conclusion" in report
 
 
 def test_constrained_report_uses_academic_structure_when_requested():

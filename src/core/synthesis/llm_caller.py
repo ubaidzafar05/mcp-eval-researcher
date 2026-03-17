@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def generation_token_budget(*, deep_mode: bool) -> int:
     """Return the max_tokens value based on research depth."""
-    return 6500 if deep_mode else 2800
+    return 16000 if deep_mode else 8000
 
 
 def _needs_no_think(model_name: str) -> bool:

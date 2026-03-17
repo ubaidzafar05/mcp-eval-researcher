@@ -188,7 +188,7 @@ def _section_contract(report_structure_mode: str) -> str:
             "Required section order (exact headings): "
             "Title; Executive Summary; Background and Context; Key Questions; Evidence and Findings; "
             "Deep Analysis; Conflicting Evidence; Case Studies or Examples; "
-            "Limitations of Current Knowledge; Implications; Conclusion; Sources Used."
+            "Limitations of Current Knowledge; Implications; Recommendations; Conclusion; Sources Used."
         )
     return (
         "Required top order: Executive Summary, Direct Answer, Key Findings, "
@@ -370,39 +370,13 @@ def create_synthesizer_node(runtime: GraphRuntime):
         )
 
         if map_reduce_active and state.get("subtopics") and not state.get("shared_corpus_docs"):
-            report = build_fail_closed_report(
-                state["query"],
-                reason="No citable external sources were retrieved.",
-            )
-            return {
-                "report_draft": report,
-                "citations": [],
-                "metrics": build_fallback_metrics(
-                    state=state,
-                    citations=[],
-                    reason="no_docs",
-                    kept_count=0,
-                ),
-                "status": "synthesized",
-                "logs": ["Map-reduce failed-closed: shared corpus is empty."],
-            }
+            # No shared corpus but sub_reports may exist — fall through to synthesis.
+            # If sub_reports also empty, will be handled by the next check.
+            pass
         if map_reduce_active and not sub_reports and state.get("subtopics"):
-            report = build_fail_closed_report(
-                state["query"],
-                reason="All sub-research branches failed before synthesis.",
-            )
-            return {
-                "report_draft": report,
-                "citations": [],
-                "metrics": build_fallback_metrics(
-                    state=state,
-                    citations=[],
-                    reason="all_subtopics_failed",
-                    kept_count=len(state.get("shared_corpus_docs", [])),
-                ),
-                "status": "synthesized",
-                "logs": ["All subtopic branches failed; generated fail-closed draft."],
-            }
+            # All sub-research branches failed — fall through to single-path synthesis
+            # which will attempt to use direct docs (tavily/ddg/firecrawl).
+            map_reduce_active = False
         if map_reduce_active and sub_reports:
             query_profile = state.get("query_profile") or profile_query(state["query"])
             policy = safe_analysis_policy(
@@ -608,47 +582,69 @@ def create_synthesizer_node(runtime: GraphRuntime):
                     break
 
         if not pruned_docs:
-            report = "## Executive Summary\n\nNo external sources were found for this query. The research could not be completed."
-            if runtime.config.relaxed_quality_mode:
-                report = (
-                    f"{report}\n\n## Claims\n"
-                    "- [C1] CONSTRAINED: No sources were available to extract claims. | "
-                    "source: none | confidence: low | reason: fallback_claim_from_source\n\n"
-                    "Some claims are generated from source snippets due to limited extraction confidence."
-                )
-            citations = []
-            return {
-                "report_draft": report,
-                "citations": citations,
-                "metrics": build_fallback_metrics(
-                    state=state, citations=citations, reason="no_docs"
-                ),
-                "status": "synthesized",
-            }
-
-        # Pre-synthesis Tier-A/B floor: if no primary sources exist and quality mode
-        # is strict, fail-closed rather than synthesizing from C-tier evidence only.
-        tier_ab_docs = [
-            d for d in pruned_docs
-            if ((d.meta or {}).get("source_tier") or "").upper() in {"A", "B"}
-        ]
-        if not tier_ab_docs and not runtime.config.relaxed_quality_mode:
-            report = build_fail_closed_report(
-                state["query"],
-                reason="No primary (Tier-A/B) sources found. All available evidence is C-tier.",
+            # No external sources — generate report from query using LLM with
+            # clear "no external evidence" labeling. Always produce a report.
+            logger.warning("No external docs available — synthesizing from query only with confidence labels.")
+            system_msg = (
+                INVESTIGATIVE_PROMPT
+                if runtime.config.report_structure_mode == "investigative"
+                else SYNTHESIZER_PROMPT
             )
+            user_msg = (
+                f"Query: {state['query']}\n\n"
+                "IMPORTANT: No external sources were retrieved for this query. "
+                "Write a comprehensive analytical report using your domain knowledge. "
+                "Label ALL claims as [UNVERIFIED] since no external citations are available. "
+                "The report must still be thorough and detailed — explain what is generally known "
+                "about this topic, identify key questions, and outline what evidence would be needed. "
+                "Do NOT leave sections empty or refuse to write.\n\n"
+                "Extracted Claims:\n- No extracted claims available (no external sources retrieved).\n"
+            )
+            model_selection = runtime.model_router.select_model(
+                task_type="synthesis",
+                context_size=len(user_msg),
+                latency_budget_ms=18000 if deep_mode else 9000,
+                tenant_tier=tenant_tier,
+                tenant_context=tenant_context,
+                plan_complexity="high" if deep_mode else "medium",
+            )
+            report = ""
+            try:
+                client = runtime.get_llm_client(
+                    model_selection.provider,
+                    request_timeout_seconds=runtime.config.llm_request_timeout_seconds_synthesis,
+                )
+                report = call_llm(
+                    client,
+                    model_selection.provider,
+                    model_selection.model_name,
+                    system_msg,
+                    user_msg,
+                    deep_mode=deep_mode,
+                )
+            except Exception:  # noqa: BLE001
+                report = build_fail_closed_report(
+                    state["query"],
+                    reason="No external sources found and LLM synthesis also failed.",
+                )
             return {
                 "report_draft": report,
                 "citations": [],
                 "metrics": build_fallback_metrics(
-                    state=state,
-                    citations=[],
-                    reason="no_primary_sources",
-                    kept_count=len(pruned_docs),
+                    state=state, citations=[], reason="no_docs_llm_synthesis"
                 ),
                 "status": "synthesized",
-                "logs": ["Fail-closed: zero Tier-A/B sources in pruned docs."],
+                "logs": ["No external docs — generated report from LLM knowledge with UNVERIFIED labels."],
             }
+
+        # Pre-synthesis Tier-A/B check: log warning but proceed with C-tier evidence.
+        # Reports always include confidence labels so readers can assess evidence quality.
+        tier_ab_docs = [
+            d for d in pruned_docs
+            if ((d.meta or {}).get("source_tier") or "").upper() in {"A", "B"}
+        ]
+        if not tier_ab_docs:
+            logger.warning("No Tier-A/B sources found — proceeding with C-tier evidence and confidence labels.")
 
         # 3. Pass 1: Extraction & Context Building
         extraction_result = None
