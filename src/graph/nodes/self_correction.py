@@ -229,7 +229,16 @@ def create_self_correction_node(runtime: GraphRuntime):
                 user_msg = (
                     f"Original Report:\n{report}\n\n"
                     f"Validation Issues:\n{chr(10).join(reasons)}\n\n"
-                    "Rewrite to satisfy all requirements. Keep valid claim IDs and do not invent sources.\n"
+                    "Rewrite the report to satisfy all requirements. Produce a COMPREHENSIVE, DEEPLY ANALYTICAL report.\n\n"
+                    "MANDATORY REQUIREMENTS:\n"
+                    "- Keep ALL valid claim IDs ([C101], [C201], etc.) and do NOT invent sources.\n"
+                    "- Every factual claim MUST have a confidence label: [HIGH CONFIDENCE], [MODERATE CONFIDENCE], [LOW CONFIDENCE], or [UNVERIFIED].\n"
+                    "- Use ## Markdown headings (not **bold**) for all section titles.\n"
+                    "- Use ### subheadings within each section for detailed breakdown.\n"
+                    "- Write 8,000-15,000 words minimum. Expand each section with thorough analysis.\n"
+                    "- Include real-world examples, case studies, and practical implications.\n"
+                    "- Write in a professional, humanized analytical tone — not a list of bullet points.\n"
+                    "- Do NOT hedge excessively. Present findings assertively while noting confidence levels.\n"
                     f"{_correction_structure_hint(runtime.config.report_structure_mode)}\n"
                     "Keep technical sections informative but appendix-oriented, and keep Sources Used as the final section.\n"
                     "Reduce repetitive sentence scaffolding and avoid source-inventory tone in the top sections."
@@ -239,10 +248,9 @@ def create_self_correction_node(runtime: GraphRuntime):
                     CRITIC_PROMPT,
                     user_msg,
                 )
-                # Runtime always returns an OpenAI-compatible client (Ollama /v1).
                 resp = client.chat.completions.create(
                     **kwargs,
-                    max_tokens=3600 if runtime.config.research_depth == "deep" else 2200,
+                    max_tokens=16000 if runtime.config.research_depth == "deep" else 8000,
                     temperature=model_selection.temperature or 0.2,
                 )
                 content = resp.choices[0].message.content or ""

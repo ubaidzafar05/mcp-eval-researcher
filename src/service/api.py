@@ -283,8 +283,8 @@ def _quality_profile_overrides(profile: Literal["strict", "relaxed"]) -> dict[st
     if profile != "relaxed":
         return {}
     return {
-        "report_completion_mode": "template_fill",
-        "allow_placeholder_sections": True,
+        "report_completion_mode": "strict_no_placeholders",
+        "allow_placeholder_sections": False,
         "report_structure_mode": "investigative",
         "report_surface_mode": "full_technical",
         "show_technical_sections_default": True,

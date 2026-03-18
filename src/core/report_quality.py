@@ -127,32 +127,12 @@ def ensure_required_sections(
     allow_placeholder_sections: bool = False,
     report_structure_mode: str = "decision_brief",
 ) -> str:
+    """Ensure the report has required sections. Never inserts placeholder stubs."""
     body = (report or "").strip()
     if not body:
         return report
-
-    if not allow_placeholder_sections:
-        return body
-
-    body_no_sources, existing_sources = _split_sources_section(body)
-    headings = {_norm(h) for h in HEADING_PATTERN.findall(body_no_sources)}
-    additions: list[str] = []
-    required_headings = _required_headings_for_mode(report_structure_mode)
-    for heading in required_headings:
-        if heading in headings:
-            continue
-        heading_title = heading.title().replace("And", "and")
-        additions.append(
-            f"## {heading_title}\n"
-            "- Section placeholder added by template_fill mode. Replace with verified content before publishing."
-        )
-    merged = body_no_sources
-    if additions:
-        merged = f"{merged}\n\n" + "\n\n".join(additions)
-    if "sources used" not in headings:
-        sources_block = existing_sources or "- No source ledger was provided in this draft."
-        merged = f"{merged}\n\n## Sources Used\n{sources_block.strip()}"
-    return merged.strip()
+    # Always return the report as-is — placeholder insertion degrades output.
+    return body
 
 
 def _extract_sources_section(body: str) -> str:

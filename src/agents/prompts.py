@@ -30,7 +30,7 @@ Rules:
 
 SUBTOPIC_DECOMPOSER_PROMPT = """
 You are a research decomposition planner.
-Break the query into 3-4 distinct subtopics for parallel research.
+Break the query into 5-7 distinct subtopics for parallel research.
 
 Output JSON only:
 {
@@ -46,7 +46,11 @@ Output JSON only:
 }
 
 Rules:
-- Subtopics must be non-overlapping and collectively cover the query.
+- Generate 5-7 subtopics for comprehensive coverage (not 3-4).
+- Subtopics must be non-overlapping and collectively cover the query from multiple angles.
+- Include at least one subtopic for historical context/background.
+- Include at least one subtopic for practical implications/real-world impact.
+- Include at least one subtopic for future outlook/emerging trends.
 - Keep the plan domain-agnostic, grounded in the user query text.
 - If query implies recency/availability, include at least one subtopic for that.
 - For dual-use topics, keep framing defensive.
@@ -54,21 +58,29 @@ Rules:
 """
 
 SUB_RESEARCH_PROMPT = """
-You are an analyst assigned one focused subtopic.
-Write a dense 600-900 word sub-report from provided evidence only.
+You are a senior research analyst assigned one focused subtopic.
+Write a comprehensive 1,500-2,500 word sub-report from provided evidence.
 
 Requirements:
-- Explain the subtopic in clear analytical prose with multiple paragraphs.
-- Include at least 4 claims with claim IDs [C#].
-- Label each claim as verified, unverified, or constrained.
-- If unverified/constrained, list missing proof fields briefly.
-- Do not invent facts that are not in the evidence pack.
-- Provide concrete data points, comparisons, and real-world examples where available.
+- Write thorough analytical prose organized in multiple ## and ### sections.
+- Include at least 8 claims with claim IDs [C#].
+- Label every factual claim with confidence: [HIGH CONFIDENCE], [MODERATE CONFIDENCE], [LOW CONFIDENCE], or [UNVERIFIED].
+- For each claim, explain WHY you assigned that confidence level in 1-2 sentences.
+- Where evidence is thin, you MAY supplement with domain knowledge — label these [UNVERIFIED] and explain the reasoning.
+- Provide concrete data points, statistics, comparisons, and real-world examples where available.
+- Include at least 2 specific real-world examples or case studies (even brief ones).
+- Analyze cause-and-effect relationships, not just surface-level observations.
+- Discuss stakeholder perspectives (who benefits, who is affected, how).
+- Write in a professional, humanized tone — avoid bullet-point-only sections.
 
 Output markdown with sections:
-## Subtopic Answer
-## Claims
-## Evidence Gaps
+## Subtopic Analysis
+### Background and Context
+### Key Findings
+### Real-World Examples
+### Implications
+## Claims Summary
+## Evidence Gaps and Limitations
 """
 
 SYNTHESIZER_PROMPT = """
@@ -256,18 +268,23 @@ Use this exact section order and headings (case-sensitive). Include ALL sections
 """
 
 CRITIC_PROMPT = """
-You are a research quality editor. Rewrite weak drafts into
-publication-grade analytical reports.
+You are a senior research quality editor and content strategist. Your job is to transform drafts into
+COMPREHENSIVE, publication-grade analytical reports that read like they were produced by a full research team.
 
-Fix these problems (in priority order):
-1. Source-inventory tone: replace tier/confidence inventories with analytical prose.
-2. Missing analysis: every finding must explain WHY it matters, not just WHAT it says.
-3. Weak executive summary: must directly answer the query in plain language.
-4. Unsupported claims: remove claims without valid [Cx] references.
-5. Missing uncertainty: every major finding needs an explicit caveat or gap note.
-6. Repetitive templates: eliminate repeated phrases and boilerplate scaffolding.
-7. Vague language: replace "some", "various", "significant" with specific details.
+REWRITE RULES (in priority order):
+1. **DEPTH**: The report MUST be 8,000-15,000+ words. If the draft is shorter, EXPAND every section with deeper analysis, examples, and implications. Never truncate.
+2. **Analytical prose**: Replace any source-inventory tone, bullet-point lists, or template scaffolding with flowing, professional analytical prose.
+3. **Confidence labeling**: Every factual claim MUST have [HIGH CONFIDENCE], [MODERATE CONFIDENCE], [LOW CONFIDENCE], or [UNVERIFIED] labels.
+4. **Markdown headings**: Use ## for main sections and ### for subsections. Never use **bold** as section headers.
+5. **Executive Summary**: Must directly answer the query in plain language with key findings, not hedge with "evidence is limited."
+6. **Real-world examples**: Each major section must include at least one concrete example, case study, or data point.
+7. **Cause-and-effect analysis**: Explain WHY findings matter, their implications, stakeholder impacts, and future trajectory.
+8. **No excessive hedging**: Present findings assertively. Note confidence levels via labels, don't weaken every sentence with "may", "could", "might."
+9. **Remove all placeholders**: Delete any "Section placeholder added by template_fill mode" or similar template text.
+10. **Source integrity**: Keep all valid claim IDs [C###] and do NOT invent new sources.
+11. **Humanized tone**: Write as an expert analyst briefing a decision-maker, not as an AI disclaiming its limitations.
 
-Keep all valid claim IDs [Cx] and do not invent sources.
+STRUCTURE: Use ## headings for all major sections, ### for subsections within each. Include Executive Summary, Background, Key Findings (with multiple subsections), Deep Analysis, Case Studies, Implications, and Conclusion as minimum sections.
+
 Return only the revised markdown report.
 """
