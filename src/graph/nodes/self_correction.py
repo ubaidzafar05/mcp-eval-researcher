@@ -235,7 +235,7 @@ def create_self_correction_node(runtime: GraphRuntime):
                     "- Every factual claim MUST have a confidence label: [HIGH CONFIDENCE], [MODERATE CONFIDENCE], [LOW CONFIDENCE], or [UNVERIFIED].\n"
                     "- Use ## Markdown headings (not **bold**) for all section titles.\n"
                     "- Use ### subheadings within each section for detailed breakdown.\n"
-                    "- Write 8,000-15,000 words minimum. Expand each section with thorough analysis.\n"
+                    "- The rewritten report must be at least as long as the original. Expand thin sections.\n"
                     "- Include real-world examples, case studies, and practical implications.\n"
                     "- Write in a professional, humanized analytical tone — not a list of bullet points.\n"
                     "- Do NOT hedge excessively. Present findings assertively while noting confidence levels.\n"
@@ -250,7 +250,7 @@ def create_self_correction_node(runtime: GraphRuntime):
                 )
                 resp = client.chat.completions.create(
                     **kwargs,
-                    max_tokens=16000 if runtime.config.research_depth == "deep" else 8000,
+                    max_tokens=4096,
                     temperature=model_selection.temperature or 0.2,
                 )
                 content = resp.choices[0].message.content or ""

@@ -59,28 +59,24 @@ Rules:
 
 SUB_RESEARCH_PROMPT = """
 You are a senior research analyst assigned one focused subtopic.
-Write a comprehensive 1,500-2,500 word sub-report from provided evidence.
+Write a comprehensive 800-1,200 word sub-report from provided evidence.
 
 Requirements:
-- Write thorough analytical prose organized in multiple ## and ### sections.
-- Include at least 8 claims with claim IDs [C#].
+- Write thorough analytical prose organized in ## and ### sections.
+- Include at least 4 claims with claim IDs [C#].
 - Label every factual claim with confidence: [HIGH CONFIDENCE], [MODERATE CONFIDENCE], [LOW CONFIDENCE], or [UNVERIFIED].
-- For each claim, explain WHY you assigned that confidence level in 1-2 sentences.
-- Where evidence is thin, you MAY supplement with domain knowledge — label these [UNVERIFIED] and explain the reasoning.
-- Provide concrete data points, statistics, comparisons, and real-world examples where available.
-- Include at least 2 specific real-world examples or case studies (even brief ones).
+- Where evidence is thin, you MAY supplement with domain knowledge — label these [UNVERIFIED].
+- Provide concrete data points, statistics, and real-world examples where available.
 - Analyze cause-and-effect relationships, not just surface-level observations.
-- Discuss stakeholder perspectives (who benefits, who is affected, how).
 - Write in a professional, humanized tone — avoid bullet-point-only sections.
 
 Output markdown with sections:
 ## Subtopic Analysis
-### Background and Context
 ### Key Findings
 ### Real-World Examples
 ### Implications
 ## Claims Summary
-## Evidence Gaps and Limitations
+## Evidence Gaps
 """
 
 SYNTHESIZER_PROMPT = """
@@ -153,10 +149,10 @@ Use this exact section order and headings. You MUST include ALL sections — add
 ## Sources Used
 
 DEPTH REQUIREMENTS:
-- Minimum depth: at least 3-5 substantial paragraphs per major section, 2-3 paragraphs per subsection.
+- Minimum depth: at least 2-3 substantial paragraphs per major section.
 - No single-sentence sections. Every section must have meaningful analytical content.
 - Each section must add distinct substance and build upon the previous ones.
-- TARGET LENGTH: 8,000-15,000+ words of rich, comprehensive analytical prose.
+- TARGET LENGTH: 2,500-3,500 words of rich analytical prose (you are synthesizing sub-reports that add further depth).
 - If evidence is limited for a section, still write analytical content describing what is known, what is uncertain, and what evidence would resolve the uncertainty. Label such content with appropriate confidence tags.
 
 QUALITY REQUIREMENTS:
@@ -252,10 +248,10 @@ Use this exact section order and headings (case-sensitive). Include ALL sections
 </output_structure>
 
 <depth_requirements>
-- Minimum depth: at least 3-5 substantial paragraphs per major section, 2-3 paragraphs per subsection.
+- Minimum depth: at least 2-3 substantial paragraphs per major section.
 - No single-sentence sections. Every section must contain meaningful analysis.
 - Each section must add distinct substance and build upon the previous ones.
-- TARGET LENGTH: 8,000-15,000+ words of rich, comprehensive analytical prose.
+- TARGET LENGTH: 2,500-3,500 words of rich analytical prose (you are synthesizing sub-reports that add further depth).
 - If evidence is limited for a section, describe what is known, what is uncertain, and what evidence would resolve the uncertainty. Label with appropriate confidence tags.
 </depth_requirements>
 
@@ -269,22 +265,22 @@ Use this exact section order and headings (case-sensitive). Include ALL sections
 
 CRITIC_PROMPT = """
 You are a senior research quality editor and content strategist. Your job is to transform drafts into
-COMPREHENSIVE, publication-grade analytical reports that read like they were produced by a full research team.
+publication-grade analytical reports that read like they were produced by a professional research team.
 
 REWRITE RULES (in priority order):
-1. **DEPTH**: The report MUST be 8,000-15,000+ words. If the draft is shorter, EXPAND every section with deeper analysis, examples, and implications. Never truncate.
-2. **Analytical prose**: Replace any source-inventory tone, bullet-point lists, or template scaffolding with flowing, professional analytical prose.
-3. **Confidence labeling**: Every factual claim MUST have [HIGH CONFIDENCE], [MODERATE CONFIDENCE], [LOW CONFIDENCE], or [UNVERIFIED] labels.
-4. **Markdown headings**: Use ## for main sections and ### for subsections. Never use **bold** as section headers.
-5. **Executive Summary**: Must directly answer the query in plain language with key findings, not hedge with "evidence is limited."
-6. **Real-world examples**: Each major section must include at least one concrete example, case study, or data point.
-7. **Cause-and-effect analysis**: Explain WHY findings matter, their implications, stakeholder impacts, and future trajectory.
-8. **No excessive hedging**: Present findings assertively. Note confidence levels via labels, don't weaken every sentence with "may", "could", "might."
-9. **Remove all placeholders**: Delete any "Section placeholder added by template_fill mode" or similar template text.
-10. **Source integrity**: Keep all valid claim IDs [C###] and do NOT invent new sources.
-11. **Humanized tone**: Write as an expert analyst briefing a decision-maker, not as an AI disclaiming its limitations.
+1. **Analytical prose**: Replace any source-inventory tone, bullet-point lists, or template scaffolding with flowing, professional analytical prose.
+2. **Confidence labeling**: Every factual claim MUST have [HIGH CONFIDENCE], [MODERATE CONFIDENCE], [LOW CONFIDENCE], or [UNVERIFIED] labels.
+3. **Markdown headings**: Use ## for main sections and ### for subsections. Never use **bold** as section headers.
+4. **Executive Summary**: Must directly answer the query in plain language with key findings, not hedge with "evidence is limited."
+5. **Real-world examples**: Each major section should include concrete examples or data points where available.
+6. **Cause-and-effect analysis**: Explain WHY findings matter, their implications, stakeholder impacts, and future trajectory.
+7. **No excessive hedging**: Present findings assertively. Note confidence levels via labels, don't weaken every sentence with "may", "could", "might."
+8. **Remove all placeholders**: Delete any "Section placeholder added by template_fill mode" or similar template text.
+9. **Source integrity**: Keep all valid claim IDs [C###] and do NOT invent new sources.
+10. **Humanized tone**: Write as an expert analyst briefing a decision-maker, not as an AI disclaiming its limitations.
+11. **Do NOT truncate**: The rewritten report must be at least as long as the original. Expand thin sections.
 
-STRUCTURE: Use ## headings for all major sections, ### for subsections within each. Include Executive Summary, Background, Key Findings (with multiple subsections), Deep Analysis, Case Studies, Implications, and Conclusion as minimum sections.
+STRUCTURE: Use ## headings for all major sections, ### for subsections within each.
 
 Return only the revised markdown report.
 """

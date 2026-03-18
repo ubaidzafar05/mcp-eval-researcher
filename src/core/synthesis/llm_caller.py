@@ -12,8 +12,14 @@ logger = logging.getLogger(__name__)
 
 
 def generation_token_budget(*, deep_mode: bool) -> int:
-    """Return the max_tokens value based on research depth."""
-    return 16000 if deep_mode else 8000
+    """Return the max_tokens value based on research depth.
+
+    Capped at 4096 to stay within reliable generation limits for local models
+    (Ollama qwen3:8b, deepseek-r1:14b). Cloud providers can handle more but
+    4096 tokens ≈ 3000 words which is already a substantial report section.
+    The depth comes from multiple sub-reports being merged, not from one huge call.
+    """
+    return 4096 if deep_mode else 4096
 
 
 def _needs_no_think(model_name: str) -> bool:
@@ -58,7 +64,7 @@ def call_llm(
             ],
             max_tokens=generation_token_budget(deep_mode=deep_mode),
             temperature=temperature,
-            timeout=300.0,
+            timeout=600.0,
         )
         return resp.choices[0].message.content or ""
     except Exception as exc:

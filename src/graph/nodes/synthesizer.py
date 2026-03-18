@@ -197,137 +197,118 @@ def _section_contract(report_structure_mode: str) -> str:
 
 
 def _build_subreport_fallback_report(query: str, sub_reports: list[SubReport]) -> str:
+    """Assemble a full report directly from sub-report content when LLM merge fails.
+
+    Instead of producing a thin claim registry, concatenate all sub-report
+    analyses into a cohesive report structure. The sub-reports already contain
+    analytical prose, so this produces a substantial document.
+    """
     lines = [
+        f"# {query}",
+        "",
         "## Executive Summary",
-        f"This report synthesizes {len(sub_reports)} parallel sub-research analyses for the query.",
         "",
-        "## Direct Answer",
-        "Verified: branch findings with corroborated support are retained as decision inputs.",
-        "Constrained: branch findings with missing corroboration/proof fields are directional only.",
-        "Unknowns: unresolved branch gaps are listed in evidence gaps and reason codes.",
+        f"This report synthesizes findings from {len(sub_reports)} parallel research analyses. "
+        "Each subtopic was independently researched, with evidence collected from multiple web sources "
+        "and analyzed for reliability. The findings below represent the current state of available "
+        "evidence on this topic.",
         "",
-        "## Key Findings",
     ]
-    for sub_report in sub_reports:
-        lines.append(
-            f"- **{sub_report.facet}** ({sub_report.confidence}): "
-            f"{sub_report.content.splitlines()[1] if len(sub_report.content.splitlines()) > 1 else sub_report.sub_query}"
-        )
-    lines.extend(
-        [
-            "",
-            "## Verified Findings Register",
-            "| Claim ID | Status | Why | Evidence Summary | Sources |",
-            "|---|---|---|---|---|",
-        ]
-    )
-    for sub_report in sub_reports:
-        for claim in sub_report.claims:
-            citation = next((c for c in sub_report.citations if c.claim_id == claim.claim_id), None)
-            reason = (
-                ", ".join(claim.reason_codes) if claim.reason_codes else "Sufficient corroboration"
-            )
-            evidence = (claim.evidence or (citation.evidence if citation else "") or "").replace(
-                "|", " "
-            )
-            source_url = citation.source_url if citation else "-"
-            lines.append(
-                f"| [{claim.claim_id}] | {claim.status} | {reason} | {evidence[:400]} | {source_url} |"
-            )
-    lines.extend(
-        [
-            "",
-            "## Recommendations",
-            "- Prioritize actions backed by verified findings across multiple subtopics.",
-            "- Treat constrained findings as hypotheses pending additional corroboration.",
-            "",
-            "## 12-Month Action Plan",
-            "- Q1: Close highest-impact evidence gaps and strengthen corroboration.",
-            "- Q2: Re-run targeted retrieval for constrained subtopics.",
-            "- Q3: Validate contradictions and update operating guidance.",
-            "- Q4: Institutionalize quarterly refresh and drift checks.",
-            "",
-            "## Risks, Gaps, and Uncertainty",
-            "- Branch-level constrained claims indicate incomplete evidence in some facets.",
-            "",
-            "## Sources Used",
-            "- Full source ledger is attached below.",
-        ]
-    )
+    # Collect all key findings for executive summary
+    for sub in sub_reports:
+        verified = [c for c in sub.claims if c.status == "verified"]
+        total = len(sub.claims)
+        conf_label = f"({len(verified)}/{total} claims verified)" if total else ""
+        lines.append(f"- **{sub.facet}** {conf_label}: {sub.sub_query}")
+    lines.append("")
+
+    # Each sub-report becomes a major section with its full content
+    for idx, sub in enumerate(sub_reports, 1):
+        lines.append(f"## {idx}. {sub.facet}")
+        lines.append("")
+        # Use the full sub-report content — this is the analytical prose
+        content = sub.content.strip()
+        if content:
+            # Strip duplicate headings that clash with our structure
+            for prefix in ("## Subtopic Answer", "## Subtopic Analysis"):
+                if content.startswith(prefix):
+                    content = content[len(prefix):].lstrip("\n")
+            lines.append(content)
+        else:
+            lines.append(f"Research on *{sub.sub_query}* produced limited results.")
+        lines.append("")
+
+    # Sources summary
+    lines.append("## Sources Used")
+    lines.append("")
+    seen_urls: set[str] = set()
+    for sub in sub_reports:
+        for cit in sub.citations:
+            if cit.source_url and cit.source_url not in seen_urls:
+                seen_urls.add(cit.source_url)
+                lines.append(f"- [{cit.claim_id}] {cit.title} — {cit.source_url}")
+    if not seen_urls:
+        lines.append("- No external sources were retrieved for this query.")
+
     return "\n".join(lines).strip()
 
 
 def _build_timeout_constrained_report(sub_reports: list[SubReport]) -> str:
-    verified = []
-    constrained = []
-    unknowns = []
-    register_rows = [
-        "| Claim ID | Status | Why | Evidence Summary | Sources |",
-        "|---|---|---|---|---|",
-    ]
-    for sub_report in sub_reports:
-        cite_by_id = {item.claim_id: item for item in sub_report.citations}
-        for claim in sub_report.claims:
-            citation = cite_by_id.get(claim.claim_id)
-            evidence = (claim.evidence or (citation.evidence if citation else "") or "").replace(
-                "|", " "
-            )
-            source_url = citation.source_url if citation else "-"
-            reasons = ", ".join(claim.reason_codes) if claim.reason_codes else "sufficient_support"
-            register_rows.append(
-                f"| [{claim.claim_id}] | {claim.status} | {reasons} | {evidence[:400]} | {source_url} |"
-            )
-            entry = f"[{claim.claim_id}] {claim.assertion}"
-            if claim.status == "verified":
-                verified.append(entry)
-            elif claim.status == "constrained":
-                constrained.append(entry)
-            else:
-                unknowns.append(entry)
-    if not unknowns:
-        unknowns = [
-            "Master synthesis timed out before full editorial merge; unresolved narrative conflicts remain unknown.",
-        ]
-    if len(register_rows) == 2:
-        register_rows.append(
-            "| - | constrained | llm_timeout_synthesis | No claim registry rows available from branch output | - |"
-        )
+    """Build a full report from sub-report content when master synthesis times out.
+
+    This is the critical fallback — instead of showing a thin claim registry,
+    we concatenate all sub-report analyses into a proper report. The sub-reports
+    already contain analytical prose produced by the sub-research LLM calls.
+    """
     lines = [
         "## Executive Summary",
-        "Master synthesis timed out; this report provides a constrained decision brief built only from branch claim records.",
         "",
-        "## Direct Answer",
-        "Verified: "
-        + (
-            "; ".join(verified[:4])
-            if verified
-            else "No verified conclusions passed the current floor."
-        ),
-        "Constrained: "
-        + ("; ".join(constrained[:4]) if constrained else "No constrained findings were retained."),
-        "Unknowns: " + ("; ".join(unknowns[:3]) if unknowns else "None."),
+        f"This report compiles findings from {len(sub_reports)} independent research branches. "
+        "Each branch investigated a specific facet of the research question with dedicated evidence "
+        "retrieval and analysis.",
         "",
-        "## Key Findings",
-        f"- Subtopic branches completed: {len(sub_reports)}.",
-        f"- Verified findings retained: {len(verified)}.",
-        f"- Constrained findings retained: {len(constrained)}.",
-        "",
-        "## Verified Findings Register",
-        *register_rows,
-        "",
-        "## Recommendations",
-        "- Re-run synthesis to produce full editorial narrative once provider latency stabilizes.",
-        "- Prioritize verified findings for immediate decisions and treat constrained findings as directional.",
-        "",
-        "## 12-Month Action Plan",
-        "- Q1: Stabilize synthesis runtime and provider latency.",
-        "- Q2: Re-run constrained branches with stronger primary-source corroboration.",
-        "- Q3: Resolve contradiction pairs and refresh verification counts.",
-        "- Q4: Automate regression checks for timeout and report-quality gates.",
-        "",
-        "## Risks, Gaps, and Uncertainty",
-        "- `llm_timeout_synthesis` limited narrative depth in this run.",
     ]
+    # Summary of branches
+    for sub in sub_reports:
+        verified = sum(1 for c in sub.claims if c.status == "verified")
+        constrained = sum(1 for c in sub.claims if c.status == "constrained")
+        lines.append(
+            f"- **{sub.facet}** — {verified} verified, {constrained} constrained findings "
+            f"(confidence: {sub.confidence})"
+        )
+    lines.append("")
+
+    # Full content from each sub-report
+    for idx, sub in enumerate(sub_reports, 1):
+        lines.append(f"## {idx}. {sub.facet}")
+        lines.append("")
+        content = sub.content.strip()
+        if content:
+            for prefix in ("## Subtopic Answer", "## Subtopic Analysis"):
+                if content.startswith(prefix):
+                    content = content[len(prefix):].lstrip("\n")
+            lines.append(content)
+        else:
+            lines.append(f"Research on *{sub.sub_query}* produced limited direct evidence.")
+            # Even without content, show what claims we have
+            for claim in sub.claims:
+                lines.append(f"- [{claim.claim_id}] ({claim.status}) {claim.assertion}")
+        lines.append("")
+
+    # Evidence gaps
+    all_gaps = set()
+    for sub in sub_reports:
+        all_gaps.update(sub.reason_codes or [])
+    if all_gaps:
+        lines.append("## Evidence Gaps and Limitations")
+        lines.append("")
+        for gap in sorted(all_gaps):
+            lines.append(f"- {gap.replace('_', ' ').title()}")
+        lines.append("")
+
+    lines.append("## Sources Used")
+    lines.append("- Full source ledger is attached below.")
+
     return "\n".join(lines).strip()
 
 
@@ -402,12 +383,11 @@ def create_synthesizer_node(runtime: GraphRuntime):
                 "- Any claim not directly from sub-reports MUST be labeled [UNVERIFIED].\n"
                 "- Prioritize cited evidence but do NOT leave sections thin — expand with deep analysis.\n\n"
                 "DEPTH REQUIREMENTS:\n"
-                "- Write a COMPREHENSIVE report of 8,000-15,000+ words.\n"
-                "- Each major section must have multiple ### subsections.\n"
-                "- Include real-world examples, case studies, and practical implications.\n"
+                "- Write a thorough, well-structured report of 2,500-3,500 words.\n"
+                "- Include ### subsections within major sections.\n"
                 "- Write in professional analytical prose, not bulleted lists.\n"
                 "- Do NOT hedge excessively — present findings assertively with confidence labels.\n"
-                "- Include an explicit Evidence Agreement and Disagreement section.\n\n"
+                "- Include an Evidence Agreement and Disagreement section if applicable.\n\n"
                 f"{context}\n"
             )
             model_selection = runtime.model_router.select_model(
@@ -708,9 +688,9 @@ def create_synthesizer_node(runtime: GraphRuntime):
             "- Any claim not directly from Extracted Claims MUST be labeled [UNVERIFIED].\n"
             "- Prioritize cited evidence but do NOT leave sections thin — expand with deep analysis.\n\n"
             "DEPTH REQUIREMENTS:\n"
-            "- Write a COMPREHENSIVE report of 8,000-15,000+ words.\n"
-            "- Each major section must have multiple ### subsections.\n"
-            "- Include real-world examples, case studies, and practical implications.\n"
+            "- Write a thorough, well-structured report of 2,500-3,500 words.\n"
+            "- Each major section must have ### subsections.\n"
+            "- Include real-world examples and practical implications.\n"
             "- Write in professional analytical prose, not bulleted lists.\n"
             "- Do NOT hedge excessively — present findings assertively with confidence labels.\n\n"
             f"Extracted Claims:\n{_format_extracted_claims(extraction_result)}\n"
