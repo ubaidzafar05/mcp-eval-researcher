@@ -3,6 +3,9 @@ from __future__ import annotations
 import re
 import logging
 from typing import Any
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from langchain_core.callbacks.manager import dispatch_custom_event
 
 from agents.prompts import SUB_RESEARCH_PROMPT
 from core.citations import normalize_url
@@ -110,15 +113,27 @@ def _gapfill_docs(
     max_queries: int,
     k: int,
 ) -> list[RetrievedDoc]:
-    docs: list[RetrievedDoc] = []
     facet_hint = " ".join((query_profile.domain_facets or [])[:3]).strip()
     gap_queries = [
         f"{subtopic.sub_query} primary source official evidence {facet_hint}".strip(),
         f"{subtopic.sub_query} contradiction limitation counterevidence".strip(),
-    ]
-    for query in gap_queries[: max(0, max_queries)]:
-        docs.extend(_safe_web_call(runtime, tool="ddg_search", query=query, k=k))
-        docs.extend(_safe_web_call(runtime, tool="tavily_search", query=query, k=k))
+    ][: max(0, max_queries)]
+    # Run all provider calls in parallel instead of sequential loop.
+    calls: list[tuple[str, str]] = []
+    for query in gap_queries:
+        calls.append(("ddg_search", query))
+        calls.append(("tavily_search", query))
+    docs: list[RetrievedDoc] = []
+    with ThreadPoolExecutor(max_workers=min(4, len(calls)), thread_name_prefix="gapfill") as pool:
+        futures = {
+            pool.submit(_safe_web_call, runtime, tool=tool, query=q, k=k): (tool, q)
+            for tool, q in calls
+        }
+        for future in as_completed(futures):
+            try:
+                docs.extend(future.result())
+            except Exception:  # noqa: BLE001
+                pass
     return docs
 
 
@@ -212,7 +227,7 @@ def _compose_subreport_text(
         if selection.provider == "anthropic":
             resp = client.messages.create(
                 model=selection.model_name,
-                max_tokens=3200,
+                max_tokens=6000,
                 system=SUB_RESEARCH_PROMPT,
                 messages=[{"role": "user", "content": user_msg}],
                 temperature=0.2,
@@ -224,7 +239,7 @@ def _compose_subreport_text(
                     {"role": "system", "content": SUB_RESEARCH_PROMPT},
                     {"role": "user", "content": user_msg},
                 ],
-                max_tokens=3200,
+                max_tokens=6000,
                 temperature=0.2,
             )
             return (resp.choices[0].message.content or "").strip()
@@ -259,6 +274,15 @@ def _compose_subreport_text(
 
 
 def create_sub_research_node(runtime: GraphRuntime):
+    def _emit_progress(subtopic_id: str, phase: str, **extra: Any) -> None:
+        try:
+            dispatch_custom_event(
+                "sub_research_progress",
+                {"subtopic_id": subtopic_id, "phase": phase, "stage": "research", **extra},
+            )
+        except Exception:  # noqa: BLE001
+            pass  # dispatch may fail outside async context
+
     def sub_research_node(state: ResearchState) -> dict:
         subtopic = _subtopic_from_state(state)
         if subtopic is None:
@@ -297,6 +321,7 @@ def create_sub_research_node(runtime: GraphRuntime):
                 query_profile=query_profile,
                 max_docs=12,
             )
+            _emit_progress(subtopic.id, "gap_fill_complete", doc_count=len(slice_docs))
         if not slice_docs:
             if runtime.config.subreport_failure_policy == "fail_closed":
                 return {
@@ -343,6 +368,7 @@ def create_sub_research_node(runtime: GraphRuntime):
             claims_result = None
         extracted_claims = list(getattr(claims_result, "claims", []) or [])
         fallback_used = bool(getattr(claims_result, "fallback_used", False))
+        _emit_progress(subtopic.id, "claims_extracted", claim_count=len(extracted_claims))
         if (
             not extracted_claims
             and runtime.config.subreport_failure_policy == "retry_once"
@@ -464,6 +490,7 @@ def create_sub_research_node(runtime: GraphRuntime):
             missing_fields.add("branch_verified_floor_not_met")
             constrained_count = max(1, constrained_count)
 
+        _emit_progress(subtopic.id, "synthesis_starting", claim_count=len(claim_records))
         content = _compose_subreport_text(
             runtime,
             subtopic=subtopic,

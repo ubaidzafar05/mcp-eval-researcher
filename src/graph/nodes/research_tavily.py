@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import urlparse
 
 from core.citations import normalize_url
@@ -133,8 +134,14 @@ def create_research_tavily_node(runtime: GraphRuntime):
 
         docs = []
         aggregate_stats = RetrievalFilterStats()
-        for query in task_queries[:top_n_queries]:
-            docs.extend(_safe_web_call(query, k))
+        # Parallel query dispatch — all queries run concurrently.
+        with ThreadPoolExecutor(max_workers=top_n_queries, thread_name_prefix="tavily") as pool:
+            futures = [pool.submit(_safe_web_call, q, k) for q in task_queries[:top_n_queries]]
+            for future in as_completed(futures):
+                try:
+                    docs.extend(future.result())
+                except Exception:  # noqa: BLE001
+                    pass
         aggregate_stats.candidate_count = len(docs)
         provider_alerts: list[str] = []
         if any(
@@ -193,8 +200,14 @@ def create_research_tavily_node(runtime: GraphRuntime):
         # Peak mode second pass: refocus retrieval toward primary A/B sources when first pass is weak.
         if peak_mode and _tier_ab_count(docs) < runtime.config.min_ab_sources:
             retry_docs: list = []
-            for query in _peak_refocus_queries(effective_query, facets)[:2]:
-                retry_docs.extend(_safe_web_call(query, max(8, k)))
+            refocus_queries = _peak_refocus_queries(effective_query, facets)[:2]
+            with ThreadPoolExecutor(max_workers=2, thread_name_prefix="tavily_refocus") as pool:
+                futures = [pool.submit(_safe_web_call, q, max(8, k)) for q in refocus_queries]
+                for future in as_completed(futures):
+                    try:
+                        retry_docs.extend(future.result())
+                    except Exception:  # noqa: BLE001
+                        pass
             aggregate_stats.candidate_count += len(retry_docs)
             retry_normalized = _normalize_docs(retry_docs, deep=True)
             retry_docs = retry_normalized

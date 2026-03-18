@@ -252,15 +252,15 @@ def load_config(overrides: dict[str, Any] | None = None) -> RunConfig:
             profile_flags["enable_distributed"],
         ),
         "stream_stage_idle_seconds_planning": _env_int("STREAM_STAGE_IDLE_SECONDS_PLANNING", 360),
-        "stream_stage_idle_seconds_research": _env_int("STREAM_STAGE_IDLE_SECONDS_RESEARCH", 600),
-        "stream_stage_idle_seconds_synthesis": _env_int("STREAM_STAGE_IDLE_SECONDS_SYNTHESIS", 900),
+        "stream_stage_idle_seconds_research": _env_int("STREAM_STAGE_IDLE_SECONDS_RESEARCH", 1200),
+        "stream_stage_idle_seconds_synthesis": _env_int("STREAM_STAGE_IDLE_SECONDS_SYNTHESIS", 1200),
         "stream_stage_idle_seconds_evaluation": _env_int(
             "STREAM_STAGE_IDLE_SECONDS_EVALUATION", 420
         ),
         "stream_stage_idle_seconds_finalizing": _env_int(
             "STREAM_STAGE_IDLE_SECONDS_FINALIZING", 300
         ),
-        "stream_max_runtime_seconds": _env_int("STREAM_MAX_RUNTIME_SECONDS", 2400),
+        "stream_max_runtime_seconds": _env_int("STREAM_MAX_RUNTIME_SECONDS", 3600),
         "stream_warn_before_idle_ratio": _env_float("STREAM_WARN_BEFORE_IDLE_RATIO", 0.70),
         "llm_request_timeout_seconds_research": _env_int(
             "LLM_REQUEST_TIMEOUT_SECONDS_RESEARCH", 90

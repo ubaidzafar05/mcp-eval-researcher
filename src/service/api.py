@@ -297,6 +297,7 @@ def _quality_profile_overrides(profile: Literal["strict", "relaxed"]) -> dict[st
         "insufficient_evidence_output": "soft_fallback",
         "llm_request_timeout_seconds_synthesis": 180,
         "stream_stage_idle_seconds_synthesis": 1800,
+        "stream_stage_idle_seconds_research": 1800,
         "min_external_sources": 2,
         "min_unique_domains": 2,
         "min_unique_providers": 1,

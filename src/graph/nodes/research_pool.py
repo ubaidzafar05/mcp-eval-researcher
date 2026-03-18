@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+from langchain_core.callbacks.manager import dispatch_custom_event
+
 from core.citations import normalize_url
 from core.models import RetrievedDoc
 from core.source_quality import filter_docs_for_query, prioritize_docs
@@ -8,6 +13,8 @@ from graph.nodes.research_firecrawl import create_research_firecrawl_node
 from graph.nodes.research_tavily import create_research_tavily_node
 from graph.runtime import GraphRuntime
 from graph.state import ResearchState
+
+logger = logging.getLogger(__name__)
 
 
 def _as_int(value: object) -> int:
@@ -52,9 +59,33 @@ def create_research_pool_node(runtime: GraphRuntime):
     firecrawl_node = create_research_firecrawl_node(runtime)
 
     def research_pool_node(state: ResearchState) -> dict:
-        tavily_updates = tavily_node(state)
-        ddg_updates = ddg_node(state)
-        firecrawl_updates = firecrawl_node(state)
+        # Run all 3 providers in parallel — cuts pool time from sum() to max().
+        results: dict[str, dict] = {}
+        with ThreadPoolExecutor(max_workers=3, thread_name_prefix="research") as pool:
+            futures = {
+                pool.submit(tavily_node, state): "tavily",
+                pool.submit(ddg_node, state): "ddg",
+                pool.submit(firecrawl_node, state): "firecrawl",
+            }
+            for future in as_completed(futures):
+                provider = futures[future]
+                try:
+                    results[provider] = future.result()
+                except Exception:  # noqa: BLE001
+                    logger.warning("Provider %s failed in parallel pool", provider)
+                    results[provider] = {}
+                try:
+                    dispatch_custom_event(
+                        "provider_complete",
+                        {"provider": provider, "stage": "research",
+                         "doc_count": len(results[provider].get(f"{provider}_docs", []))},
+                    )
+                except Exception:  # noqa: BLE001
+                    pass  # dispatch may fail outside async context
+
+        tavily_updates = results.get("tavily", {})
+        ddg_updates = results.get("ddg", {})
+        firecrawl_updates = results.get("firecrawl", {})
 
         tavily_docs = list(tavily_updates.get("tavily_docs", []))
         ddg_docs = list(ddg_updates.get("ddg_docs", []))
