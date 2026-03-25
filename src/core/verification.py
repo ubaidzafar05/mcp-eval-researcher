@@ -249,56 +249,41 @@ def wide_then_hard_filter(
     freshness_max_months: int,
     min_relevance: float = 0.16,
 ) -> tuple[list[RetrievedDoc], RetrievalFilterStats]:
+    """Keep ALL docs but tag them with relevance/freshness metadata. Never drop."""
     stats = RetrievalFilterStats(candidate_count=len(docs))
     seen: set[str] = set()
     kept: list[RetrievedDoc] = []
     for doc in docs:
-        url = normalize_url(doc.url)
-        if not url:
-            stats.filtered_count += 1
-            stats.low_signal_count += 1
+        url = normalize_url(doc.url) or "unknown"
+        dedup_key = url if url != "unknown" else f"unknown_{id(doc)}"
+        if dedup_key in seen:
             continue
-        if url in seen:
-            continue
-        seen.add(url)
+        seen.add(dedup_key)
 
         text = _doc_text(doc)
-        if len(text.split()) < 12:
-            stats.filtered_count += 1
-            stats.low_signal_count += 1
-            continue
-
-        rel = relevance_score(
-            doc,
-            query=query,
-            facets=profile.domain_facets,
-        )
-        if rel < min_relevance:
-            stats.filtered_count += 1
-            stats.off_topic_count += 1
-            continue
-
+        rel = relevance_score(doc, query=query, facets=profile.domain_facets)
         fresh_flag, doc_date = freshness_ok(doc, max_months=freshness_max_months)
-        if fresh_flag is False:
-            stats.filtered_count += 1
-            stats.stale_count += 1
-            continue
-
         open_status = detect_open_status(text)
+
+        if len(text.split()) < 12:
+            stats.low_signal_count += 1
+        if rel < min_relevance:
+            stats.off_topic_count += 1
+        if fresh_flag is False:
+            stats.stale_count += 1
+
         meta = dict(doc.meta or {})
-        meta.update(
-            {
-                "relevance_score": round(rel, 3),
-                "freshness_ok": fresh_flag,
-                "detected_open_status": open_status,
-            }
-        )
+        meta.update({
+            "relevance_score": round(rel, 3),
+            "freshness_ok": fresh_flag,
+            "detected_open_status": open_status,
+        })
         if doc_date:
             meta["detected_document_date"] = doc_date.date().isoformat()
         kept.append(doc.model_copy(update={"url": url, "meta": meta}))
 
     stats.kept_count = len(kept)
-    stats.filtered_count = max(stats.filtered_count, max(0, stats.candidate_count - stats.kept_count))
+    stats.filtered_count = 0
     return kept, stats
 
 
@@ -335,16 +320,7 @@ def verify_claim(
     reason_codes: list[str] = []
     rel_score = relevance_score(doc, query=query, facets=query_profile.domain_facets)
     if rel_score < 0.16:
-        return ClaimVerificationResult(
-            claim_id=claim_id,
-            status="withheld",
-            reason_codes=["off_topic"],
-            corroboration_count=0,
-            primary_or_official=is_primary_or_official(doc),
-            freshness_ok=None,
-            open_status="unknown",
-            relevance_score=rel_score,
-        )
+        reason_codes.append("low_relevance")
 
     fresh_flag, _ = freshness_ok(doc, max_months=freshness_max_months)
     if fresh_flag is False:
@@ -384,9 +360,7 @@ def verify_claim(
             reason_codes.append("single_source_only")
 
     status = "verified"
-    if any(code in {"stale_source", "missing_open_status", "off_topic"} for code in reason_codes):
-        status = "withheld"
-    elif reason_codes:
+    if reason_codes:
         status = "constrained"
 
     return ClaimVerificationResult(

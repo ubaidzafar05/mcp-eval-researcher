@@ -19,11 +19,25 @@ export const DEFAULT_QUALITY_PROFILE =
     ? process.env.NEXT_PUBLIC_QUALITY_PROFILE
     : "relaxed";
 
+export type ReportLength = "brief" | "standard" | "comprehensive" | "deep";
+
+export const REPORT_LENGTH_OPTIONS: {
+  value: ReportLength;
+  label: string;
+  words: string;
+  eta: string;
+}[] = [
+  { value: "brief", label: "Brief", words: "~1,500 words", eta: "~3 min" },
+  { value: "standard", label: "Standard", words: "~3,000 words", eta: "~6 min" },
+  { value: "comprehensive", label: "Comprehensive", words: "~5,000 words", eta: "~12 min" },
+  { value: "deep", label: "Deep Dive", words: "~8,000 words", eta: "~20 min" },
+];
+
 export const HEALTH_URL = `${API_BASE}/health`;
 export const STREAM_BASE_URL = `${API_BASE}/research/stream`;
 
-export function buildStreamUrl(query: string): string {
-  return `${STREAM_BASE_URL}?query=${encodeURIComponent(query)}&execution_mode=${DEFAULT_EXECUTION_MODE}&runtime_profile=${DEFAULT_RUNTIME_PROFILE}&quality_profile=${DEFAULT_QUALITY_PROFILE}`;
+export function buildStreamUrl(query: string, reportLength: ReportLength = "standard"): string {
+  return `${STREAM_BASE_URL}?query=${encodeURIComponent(query)}&execution_mode=${DEFAULT_EXECUTION_MODE}&runtime_profile=${DEFAULT_RUNTIME_PROFILE}&quality_profile=${DEFAULT_QUALITY_PROFILE}&report_length=${reportLength}`;
 }
 
 export async function fetchWithTimeout(url: string, timeoutMs: number): Promise<Response> {

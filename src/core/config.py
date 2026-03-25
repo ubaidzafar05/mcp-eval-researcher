@@ -48,6 +48,49 @@ def _ensure_dirs(config: RunConfig) -> None:
     Path(config.output_dir).mkdir(parents=True, exist_ok=True)
     Path(config.logs_dir).mkdir(parents=True, exist_ok=True)
     Path(config.data_dir).mkdir(parents=True, exist_ok=True)
+
+
+# Report length presets: maps report_length to word counts and subtopic counts
+REPORT_LENGTH_PRESETS: dict[str, dict[str, int]] = {
+    "brief": {
+        "target_report_words_peak_min": 1000,
+        "target_report_words_peak_max": 1500,
+        "min_report_words_deep": 800,
+        "subreport_target_words": 300,
+        "subtopic_count_default": 3,
+        "subtopic_count_max": 4,
+    },
+    "standard": {
+        "target_report_words_peak_min": 2500,
+        "target_report_words_peak_max": 3500,
+        "min_report_words_deep": 2000,
+        "subreport_target_words": 600,
+        "subtopic_count_default": 4,
+        "subtopic_count_max": 5,
+    },
+    "comprehensive": {
+        "target_report_words_peak_min": 4000,
+        "target_report_words_peak_max": 6000,
+        "min_report_words_deep": 3500,
+        "subreport_target_words": 900,
+        "subtopic_count_default": 5,
+        "subtopic_count_max": 7,
+    },
+    "deep": {
+        "target_report_words_peak_min": 6000,
+        "target_report_words_peak_max": 10000,
+        "min_report_words_deep": 5000,
+        "subreport_target_words": 1200,
+        "subtopic_count_default": 6,
+        "subtopic_count_max": 8,
+    },
+}
+
+
+def report_length_word_range(config: RunConfig) -> tuple[int, int]:
+    """Return (min_words, max_words) for the selected report_length preset."""
+    preset = REPORT_LENGTH_PRESETS.get(config.report_length, REPORT_LENGTH_PRESETS["standard"])
+    return preset["target_report_words_peak_min"], preset["target_report_words_peak_max"]
     Path(config.memory_dir).mkdir(parents=True, exist_ok=True)
 
 
@@ -153,6 +196,7 @@ def load_config(overrides: dict[str, Any] | None = None) -> RunConfig:
         "judge_provider": os.getenv("JUDGE_PROVIDER", "ollama"),
         "judge_json_mode": os.getenv("JUDGE_JSON_MODE", "repair_retry_fallback"),
         "research_depth": os.getenv("RESEARCH_DEPTH", "deep"),
+        "report_length": os.getenv("REPORT_LENGTH", "standard"),
         "source_policy": os.getenv("SOURCE_POLICY", "external_only"),
         "no_source_mode": os.getenv("NO_SOURCE_MODE", "fail_closed"),
         "report_style": os.getenv("REPORT_STYLE", "brief_appendix"),
@@ -283,6 +327,12 @@ def load_config(overrides: dict[str, Any] | None = None) -> RunConfig:
     }
     if overrides:
         data.update(overrides)
+    # Apply report_length presets for word count targets (user overrides take precedence)
+    rl = str(data.get("report_length", "standard"))
+    if rl in REPORT_LENGTH_PRESETS:
+        for key, val in REPORT_LENGTH_PRESETS[rl].items():
+            if key not in (overrides or {}):
+                data[key] = val
     if "source_quality_bar" not in overrides:
         tier_mode = str(data.get("tier_policy_mode", "primary_only_strict")).strip().lower()
         if tier_mode == "primary_only_strict":

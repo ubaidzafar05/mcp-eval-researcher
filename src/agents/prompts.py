@@ -62,6 +62,7 @@ You are a senior research analyst assigned one focused subtopic.
 Write a comprehensive 800-1,200 word sub-report from provided evidence.
 
 Requirements:
+- PARAPHRASE all source material in your own words. Never copy-paste raw snippets or quotes directly.
 - Write thorough analytical prose organized in ## and ### sections.
 - Include at least 4 claims with claim IDs [C#].
 - Label every factual claim with confidence: [HIGH CONFIDENCE], [MODERATE CONFIDENCE], [LOW CONFIDENCE], or [UNVERIFIED].
@@ -69,6 +70,7 @@ Requirements:
 - Provide concrete data points, statistics, and real-world examples where available.
 - Analyze cause-and-effect relationships, not just surface-level observations.
 - Write in a professional, humanized tone — avoid bullet-point-only sections.
+- Include ALL provided evidence — do not remove, prune, or skip any source data. If a source has no URL, cite it as [Unknown Source].
 
 Output markdown with sections:
 ## Subtopic Analysis
@@ -92,6 +94,8 @@ CRITICAL RULES:
 - Do NOT output evaluation templates, metrics, scoring systems, or guardrail reports.
 - Do NOT discuss internal reasoning or chain-of-thought.
 - Do NOT produce shallow summaries.
+- PARAPHRASE all source material — rewrite every piece of evidence in your own words with a humanized, natural tone.
+- Include ALL provided evidence — never prune, remove, or skip data due to quality or confidence scores. If a source has no URL, cite it as [Unknown Source].
 - The final output must be a comprehensive investigative report.
 - Do not invent sources or evidence beyond the provided claim registry and citations.
 - Weave claim IDs [C#] naturally into flowing narrative sentences; do not dump raw ledgers in the body.
@@ -188,6 +192,8 @@ ALWAYS produce a complete report. Never refuse to write or leave sections empty.
 - Do NOT output evaluation templates, metrics, scoring systems, or guardrail reports.
 - Do NOT discuss internal reasoning or chain-of-thought.
 - Do NOT produce shallow summaries.
+- PARAPHRASE all source material — rewrite every piece of evidence in your own words with a humanized, natural tone.
+- Include ALL provided evidence — never prune, remove, or skip data due to quality or confidence scores. If a source has no URL, cite it as [Unknown Source].
 - The final output must be a comprehensive investigative report.
 - Do not invent sources or evidence beyond the provided claim registry and citations.
 - Weave claim IDs [C#] naturally into flowing narrative sentences; do not dump raw ledgers in the body.

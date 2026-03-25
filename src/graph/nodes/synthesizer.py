@@ -17,6 +17,7 @@ from core.citations import (
     validate_source_integrity,
 )
 from core.claim_extractor import build_fallback_extraction, extract_claims
+from core.config import report_length_word_range
 from core.models import Citation, SubReport
 from core.pruning import prune_context_docs
 from core.query_profile import profile_query, safe_analysis_policy
@@ -77,7 +78,7 @@ def _claims_section_from_extraction(extraction_result) -> str:
             status = "constrained"
         if status != "constrained":
             all_fallback = False
-        source = (getattr(claim, "source_url", "") or "").strip() or (getattr(claim, "source_title", "") or "").strip()
+        source = (getattr(claim, "source_url", "") or "").strip() or (getattr(claim, "source_title", "") or "").strip() or "Unknown Source"
         reason = (getattr(claim, "reason", "") or "").strip()
         confidence = (getattr(claim, "confidence", "") or "").strip()
         parts = [f"- [{source_id}] {status.upper()}: {assertion}"]
@@ -371,6 +372,7 @@ def create_synthesizer_node(runtime: GraphRuntime):
                 if runtime.config.report_structure_mode == "investigative"
                 else SYNTHESIZER_PROMPT
             )
+            wmin, wmax = report_length_word_range(runtime.config)
             user_msg = (
                 f"Query: {state['query']}\n\n"
                 f"Context Policy: {policy_note(policy)}\n"
@@ -383,7 +385,7 @@ def create_synthesizer_node(runtime: GraphRuntime):
                 "- Any claim not directly from sub-reports MUST be labeled [UNVERIFIED].\n"
                 "- Prioritize cited evidence but do NOT leave sections thin — expand with deep analysis.\n\n"
                 "DEPTH REQUIREMENTS:\n"
-                "- Write a thorough, well-structured report of 2,500-3,500 words.\n"
+                f"- Write a thorough, well-structured report of {wmin:,}-{wmax:,} words.\n"
                 "- Include ### subsections within major sections.\n"
                 "- Write in professional analytical prose, not bulleted lists.\n"
                 "- Do NOT hedge excessively — present findings assertively with confidence labels.\n"
@@ -677,6 +679,7 @@ def create_synthesizer_node(runtime: GraphRuntime):
             if runtime.config.report_structure_mode == "investigative"
             else SYNTHESIZER_PROMPT
         )
+        wmin, wmax = report_length_word_range(runtime.config)
         user_msg = (
             f"Query: {state['query']}\n\n"
             f"Context Policy: {policy_note(policy)}\n"
@@ -688,7 +691,7 @@ def create_synthesizer_node(runtime: GraphRuntime):
             "- Any claim not directly from Extracted Claims MUST be labeled [UNVERIFIED].\n"
             "- Prioritize cited evidence but do NOT leave sections thin — expand with deep analysis.\n\n"
             "DEPTH REQUIREMENTS:\n"
-            "- Write a thorough, well-structured report of 2,500-3,500 words.\n"
+            f"- Write a thorough, well-structured report of {wmin:,}-{wmax:,} words.\n"
             "- Each major section must have ### subsections.\n"
             "- Include real-world examples and practical implications.\n"
             "- Write in professional analytical prose, not bulleted lists.\n"

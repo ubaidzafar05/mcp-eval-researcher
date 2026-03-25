@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { buildStreamUrl, fetchWithTimeout, HEALTH_URL } from "@/lib/api";
+import { buildStreamUrl, fetchWithTimeout, HEALTH_URL, ReportLength } from "@/lib/api";
 import { BackendHealth, LogEvent, RunBannerReason, StreamState } from "@/lib/types";
 
 const HEALTH_TIMEOUT_MS = 8000;
@@ -411,8 +411,8 @@ export function useResearchRun() {
   }, [addLog]);
 
   const openStream = useCallback(
-    (query: string) => {
-      const streamUrl = buildStreamUrl(query);
+    (query: string, reportLength: ReportLength = "standard") => {
+      const streamUrl = buildStreamUrl(query, reportLength);
       const eventSource = new EventSource(streamUrl);
       eventSourceRef.current = eventSource;
 
@@ -436,7 +436,7 @@ export function useResearchRun() {
   );
 
   const startRun = useCallback(
-    async (query: string) => {
+    async (query: string, reportLength: ReportLength = "standard") => {
       const trimmed = query.trim();
       if (!trimmed) {
         setStreamState("error");
@@ -457,7 +457,7 @@ export function useResearchRun() {
         );
         setReportNotice("Health check failed, but stream retry is in progress.");
       }
-      openStream(trimmed);
+      openStream(trimmed, reportLength);
     },
     [addLog, initializeRun, openStream, runHealthCheck],
   );

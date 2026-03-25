@@ -114,6 +114,7 @@ class ResearchRequest(BaseModel):
     judge_provider: str | None = None
     judge_json_mode: Literal["repair_retry_fallback", "strict", "heuristic"] | None = None
     research_mode: Literal["fast", "balanced", "peak"] | None = None
+    report_length: Literal["brief", "standard", "comprehensive", "deep"] | None = None
     fact_mode: Literal["strict", "balanced", "open_web"] | None = None
     crawl_strategy: Literal["wide_then_filter", "dual_lane", "aggressive"] | None = None
     availability_policy: Literal["must_be_open", "recent_or_open", "unknown_allowed"] | None = None
@@ -187,6 +188,8 @@ def _request_overrides(request: ResearchRequest) -> dict:
         overrides["judge_json_mode"] = request.judge_json_mode
     if request.research_mode:
         overrides["research_mode"] = request.research_mode
+    if request.report_length:
+        overrides["report_length"] = request.report_length
     if request.fact_mode:
         overrides["fact_mode"] = request.fact_mode
     if request.crawl_strategy:
@@ -798,6 +801,7 @@ async def research_stream(
     tenant_id: str = "default",
     execution_mode: Literal["auto", "inline", "distributed"] = "inline",
     quality_profile: Literal["strict", "relaxed"] | None = None,
+    report_length: Literal["brief", "standard", "comprehensive", "deep"] | None = None,
     mcp_mode: Literal["auto", "inprocess", "transport"] | None = None,
     runtime_profile: Literal["minimal", "balanced", "full"] | None = None,
     startup_guard_mode: Literal["hybrid", "strict"] | None = None,
@@ -825,6 +829,8 @@ async def research_stream(
     }
     if quality_profile is not None:
         overrides.update(_quality_profile_overrides(quality_profile))
+    if report_length is not None:
+        overrides["report_length"] = report_length
     if mcp_mode is not None:
         overrides["mcp_mode"] = mcp_mode
     if runtime_profile is not None:

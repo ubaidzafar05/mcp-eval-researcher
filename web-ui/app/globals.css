@@ -632,6 +632,56 @@ svg {
   line-height: 1.4;
 }
 
+/* Report length selector */
+.report-length-selector {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+.report-length-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.5rem 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  font-family: inherit;
+}
+
+.report-length-option:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.report-length-option--active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--text-primary);
+}
+
+.report-length-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.report-length-option__label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.report-length-option__meta {
+  font-size: 0.68rem;
+  opacity: 0.7;
+  line-height: 1;
+}
+
 .composer-submit {
   width: 100%;
   justify-content: center;

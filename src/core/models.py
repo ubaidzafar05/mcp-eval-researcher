@@ -196,6 +196,7 @@ class RunConfig(BaseModel):
         "repair_retry_fallback"
     )
     research_depth: Literal["fast", "balanced", "deep"] = "deep"
+    report_length: Literal["brief", "standard", "comprehensive", "deep"] = "standard"
     source_policy: Literal["external_only", "external_preferred", "mixed"] = "external_only"
     no_source_mode: Literal["fail_closed", "warn_partial", "memory_backup"] = "fail_closed"
     report_style: Literal["brief_appendix", "full_narrative", "decision_dashboard"] = (

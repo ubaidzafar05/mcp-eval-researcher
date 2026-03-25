@@ -6,9 +6,10 @@ import { Loader2, Search, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MetricChip } from "@/components/ui/metric-chip";
 import { Textarea } from "@/components/ui/textarea";
+import { REPORT_LENGTH_OPTIONS, ReportLength } from "@/lib/api";
 
 interface ResearchFormProps {
-  onSearch: (query: string) => void;
+  onSearch: (query: string, reportLength: ReportLength) => void;
   isSearching: boolean;
 }
 
@@ -42,6 +43,7 @@ function runProfile(words: number): string {
 
 export function ResearchForm({ onSearch, isSearching }: ResearchFormProps) {
   const [query, setQuery] = useState("");
+  const [reportLength, setReportLength] = useState<ReportLength>("standard");
 
   const stats = useMemo(() => {
     const trimmed = query.trim();
@@ -54,13 +56,15 @@ export function ResearchForm({ onSearch, isSearching }: ResearchFormProps) {
     };
   }, [query]);
 
+  const selectedOption = REPORT_LENGTH_OPTIONS.find((o) => o.value === reportLength)!;
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmed = query.trim();
     if (!trimmed || isSearching) {
       return;
     }
-    onSearch(trimmed);
+    onSearch(trimmed, reportLength);
   };
 
   return (
@@ -83,9 +87,31 @@ export function ResearchForm({ onSearch, isSearching }: ResearchFormProps) {
         disabled={isSearching}
       />
 
+      <label className="composer-label" style={{ marginTop: "0.75rem" }}>
+        Report Length
+      </label>
+      <div className="report-length-selector">
+        {REPORT_LENGTH_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            type="button"
+            className={`report-length-option${reportLength === opt.value ? " report-length-option--active" : ""}`}
+            onClick={() => setReportLength(opt.value)}
+            disabled={isSearching}
+          >
+            <span className="report-length-option__label">{opt.label}</span>
+            <span className="report-length-option__meta">
+              {opt.words} &middot; {opt.eta}
+            </span>
+          </button>
+        ))}
+      </div>
+
       <div className="composer-guidance">
         <Sparkles className="h-3.5 w-3.5" />
-        <p>{stats.quality.hint}</p>
+        <p>
+          {stats.quality.hint} — Report: {selectedOption.words}, ETA {selectedOption.eta}
+        </p>
       </div>
 
       <Button type="submit" size="lg" className="composer-submit" disabled={isSearching || !query.trim()}>
