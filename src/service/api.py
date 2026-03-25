@@ -9,9 +9,9 @@ import uuid
 from collections.abc import AsyncIterator
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse, StreamingResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from pydantic import BaseModel, Field
 
@@ -43,6 +43,9 @@ def _validate_startup_env() -> None:
         log.warning("STARTUP: No LLM provider configured")
     if not os.getenv("TAVILY_API_KEY"):
         log.warning("STARTUP: TAVILY_API_KEY not set — research limited to DDG-only")
+    # Fail-fast in production if no LLM is available
+    if os.getenv("ENV", "development") == "production" and not has_any_llm:
+        raise RuntimeError("FATAL: No LLM provider configured. Set OLLAMA_ENDPOINT or a cloud API key.")
 
 
 @contextlib.asynccontextmanager
@@ -52,6 +55,19 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Cloud Hive API", version="0.1.0", lifespan=lifespan)
+
+
+@app.exception_handler(Exception)
+async def _global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Catch-all for unhandled exceptions — return a structured 500 response."""
+    error_id = str(uuid.uuid4())
+    logging.getLogger("cloud_hive.api").error(
+        "Unhandled exception [error_id=%s] %s: %s", error_id, type(exc).__name__, exc
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"error_id": error_id, "detail": "Internal server error"},
+    )
 
 
 _GRAPH_NODE_STAGE: dict[str, str] = {
