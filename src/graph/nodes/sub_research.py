@@ -10,9 +10,11 @@ from langchain_core.callbacks.manager import dispatch_custom_event
 from agents.prompts import SUB_RESEARCH_PROMPT
 from core.citations import normalize_url
 from core.claim_extractor import build_fallback_extraction, extract_claims
+from core.config import token_budget_for_task, timeout_for_task
 from core.models import Citation, ClaimRecord, RetrievedDoc, SubReport, SubTopic
 from core.query_profile import profile_query
 from core.source_quality import clean_evidence_text, prioritize_docs, source_tier
+from core.synthesis.llm_caller import _needs_no_think
 from core.verification import relevance_score, verify_claim
 from graph.runtime import GraphRuntime
 from graph.state import ResearchState
@@ -215,13 +217,18 @@ def _compose_subreport_text(
             request_timeout_seconds=runtime.config.llm_request_timeout_seconds_synthesis,
         )
         if selection.provider in {"openai", "groq", "openrouter", "ollama"}:
+            effective_system = SUB_RESEARCH_PROMPT
+            if _needs_no_think(selection.model_name):
+                effective_system = "/no_think\n" + SUB_RESEARCH_PROMPT
             resp = client.chat.completions.create(
                 model=selection.model_name,
                 messages=[
-                    {"role": "system", "content": SUB_RESEARCH_PROMPT},
+                    {"role": "system", "content": effective_system},
                     {"role": "user", "content": user_msg},
                 ],
+                max_tokens=token_budget_for_task(runtime.config, "subreport"),
                 temperature=0.2,
+                timeout=timeout_for_task(runtime.config, "subreport"),
             )
             return (resp.choices[0].message.content or "").strip()
         if selection.provider == "anthropic":

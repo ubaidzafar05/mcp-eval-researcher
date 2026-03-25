@@ -408,5 +408,10 @@ def assess_report_quality(
         "section_coverage": round(section_coverage, 3),
         "ctier_proxy_ratio": round(ctier_proxy_ratio, 4),
     }
-    quality_ok = True if relaxed_mode else not reasons
+    # In relaxed mode, only enforce word count — let self-correction expand thin reports.
+    if relaxed_mode:
+        word_critical = any("too brief" in r for r in reasons)
+        quality_ok = not word_critical
+    else:
+        quality_ok = not reasons
     return quality_ok, reasons, metrics

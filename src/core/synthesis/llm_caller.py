@@ -10,16 +10,17 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# Legacy fallback — prefer token_budget_for_task() from config.py instead.
+_DEFAULT_TOKEN_BUDGET = 4096
+
 
 def generation_token_budget(*, deep_mode: bool) -> int:
-    """Return the max_tokens value based on research depth.
+    """Legacy helper — returns the default token budget.
 
-    Capped at 4096 to stay within reliable generation limits for local models
-    (Ollama qwen3:8b, deepseek-r1:14b). Cloud providers can handle more but
-    4096 tokens ≈ 3000 words which is already a substantial report section.
-    The depth comes from multiple sub-reports being merged, not from one huge call.
+    Callers should prefer ``token_budget_for_task(config, task)`` which
+    scales with the user-selected report_length.
     """
-    return 4096 if deep_mode else 4096
+    return _DEFAULT_TOKEN_BUDGET if deep_mode else _DEFAULT_TOKEN_BUDGET
 
 
 def _needs_no_think(model_name: str) -> bool:
@@ -41,14 +42,23 @@ def call_llm(
     user_msg: str,
     *,
     deep_mode: bool,
+    max_tokens: int | None = None,
+    timeout: float | None = None,
 ) -> str:
     """Execute the LLM call via the OpenAI-compatible chat completions API.
 
-    Ollama exposes an OpenAI-compatible ``/v1`` endpoint, so this is the
-    universal call path for all synthesis operations.
+    Parameters
+    ----------
+    max_tokens : int | None
+        Override the default token budget.  When ``None`` falls back to
+        ``generation_token_budget()``.
+    timeout : float | None
+        Per-request timeout in seconds.  Defaults to 600s.
     """
     del provider  # always Ollama — kept for backward compat
     temperature = 0.35
+    effective_max_tokens = max_tokens or generation_token_budget(deep_mode=deep_mode)
+    effective_timeout = timeout or 600.0
 
     # Suppress chain-of-thought on reasoning models to avoid 3-minute+ latency.
     effective_system_msg = system_msg
@@ -62,9 +72,9 @@ def call_llm(
                 {"role": "system", "content": effective_system_msg},
                 {"role": "user", "content": user_msg},
             ],
-            max_tokens=generation_token_budget(deep_mode=deep_mode),
+            max_tokens=effective_max_tokens,
             temperature=temperature,
-            timeout=600.0,
+            timeout=effective_timeout,
         )
         return resp.choices[0].message.content or ""
     except Exception as exc:

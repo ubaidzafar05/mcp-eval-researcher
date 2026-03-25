@@ -59,7 +59,7 @@ Rules:
 
 SUB_RESEARCH_PROMPT = """
 You are a senior research analyst assigned one focused subtopic.
-Write a comprehensive 800-1,200 word sub-report from provided evidence.
+Write a comprehensive sub-report from provided evidence. Aim for the word target specified in the user message.
 
 Requirements:
 - PARAPHRASE all source material in your own words. Never copy-paste raw snippets or quotes directly.
@@ -156,7 +156,7 @@ DEPTH REQUIREMENTS:
 - Minimum depth: at least 2-3 substantial paragraphs per major section.
 - No single-sentence sections. Every section must have meaningful analytical content.
 - Each section must add distinct substance and build upon the previous ones.
-- TARGET LENGTH: 2,500-3,500 words of rich analytical prose (you are synthesizing sub-reports that add further depth).
+- TARGET LENGTH: Follow the word count range specified in the user message. Write as much as requested — do NOT stop short.
 - If evidence is limited for a section, still write analytical content describing what is known, what is uncertain, and what evidence would resolve the uncertainty. Label such content with appropriate confidence tags.
 
 QUALITY REQUIREMENTS:
@@ -257,7 +257,7 @@ Use this exact section order and headings (case-sensitive). Include ALL sections
 - Minimum depth: at least 2-3 substantial paragraphs per major section.
 - No single-sentence sections. Every section must contain meaningful analysis.
 - Each section must add distinct substance and build upon the previous ones.
-- TARGET LENGTH: 2,500-3,500 words of rich analytical prose (you are synthesizing sub-reports that add further depth).
+- TARGET LENGTH: Follow the word count range specified in the user message. Write as much as requested — do NOT stop short.
 - If evidence is limited for a section, describe what is known, what is uncertain, and what evidence would resolve the uncertainty. Label with appropriate confidence tags.
 </depth_requirements>
 

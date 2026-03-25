@@ -10,6 +10,7 @@ from core.citations import (
     validate_claim_level_citations,
     validate_source_integrity,
 )
+from core.config import token_budget_for_task, timeout_for_task
 from core.models import Citation
 from core.report_formatter import format_report_with_sources
 from core.report_quality import assess_report_quality
@@ -250,8 +251,9 @@ def create_self_correction_node(runtime: GraphRuntime):
                 )
                 resp = client.chat.completions.create(
                     **kwargs,
-                    max_tokens=4096,
+                    max_tokens=token_budget_for_task(runtime.config, "correction"),
                     temperature=model_selection.temperature or 0.2,
+                    timeout=timeout_for_task(runtime.config, "correction"),
                 )
                 content = resp.choices[0].message.content or ""
 

@@ -86,12 +86,43 @@ REPORT_LENGTH_PRESETS: dict[str, dict[str, int]] = {
     },
 }
 
+# Token budgets per report_length × task.  Values are max_tokens for the LLM call.
+REPORT_LENGTH_TOKEN_BUDGET: dict[str, dict[str, int]] = {
+    "brief":         {"synthesis": 2048,  "subreport": 1536, "correction": 2048},
+    "standard":      {"synthesis": 4096,  "subreport": 2048, "correction": 4096},
+    "comprehensive": {"synthesis": 8192,  "subreport": 4096, "correction": 8192},
+    "deep":          {"synthesis": 12288, "subreport": 4096, "correction": 12288},
+}
+
+# Per-request LLM timeouts (seconds) scaled to match the token budget at ~10 tok/s.
+REPORT_LENGTH_TIMEOUTS: dict[str, dict[str, float]] = {
+    "brief":         {"synthesis": 300.0,  "subreport": 180.0, "correction": 240.0},
+    "standard":      {"synthesis": 480.0,  "subreport": 300.0, "correction": 360.0},
+    "comprehensive": {"synthesis": 900.0,  "subreport": 480.0, "correction": 600.0},
+    "deep":          {"synthesis": 1200.0, "subreport": 600.0, "correction": 900.0},
+}
+
 
 def report_length_word_range(config: RunConfig) -> tuple[int, int]:
     """Return (min_words, max_words) for the selected report_length preset."""
     preset = REPORT_LENGTH_PRESETS.get(config.report_length, REPORT_LENGTH_PRESETS["standard"])
     return preset["target_report_words_peak_min"], preset["target_report_words_peak_max"]
-    Path(config.memory_dir).mkdir(parents=True, exist_ok=True)
+
+
+def token_budget_for_task(config: RunConfig, task: str) -> int:
+    """Return the max_tokens budget for *task* scaled by report_length."""
+    budgets = REPORT_LENGTH_TOKEN_BUDGET.get(
+        config.report_length, REPORT_LENGTH_TOKEN_BUDGET["standard"]
+    )
+    return budgets.get(task, 4096)
+
+
+def timeout_for_task(config: RunConfig, task: str) -> float:
+    """Return the per-request LLM timeout (seconds) for *task* scaled by report_length."""
+    timeouts = REPORT_LENGTH_TIMEOUTS.get(
+        config.report_length, REPORT_LENGTH_TIMEOUTS["standard"]
+    )
+    return timeouts.get(task, 480.0)
 
 
 def load_config(overrides: dict[str, Any] | None = None) -> RunConfig:
@@ -310,7 +341,7 @@ def load_config(overrides: dict[str, Any] | None = None) -> RunConfig:
             "LLM_REQUEST_TIMEOUT_SECONDS_RESEARCH", 90
         ),
         "llm_request_timeout_seconds_synthesis": _env_int(
-            "LLM_REQUEST_TIMEOUT_SECONDS_SYNTHESIS", 240
+            "LLM_REQUEST_TIMEOUT_SECONDS_SYNTHESIS", 600
         ),
         "llm_request_timeout_seconds_correction": _env_int(
             "LLM_REQUEST_TIMEOUT_SECONDS_CORRECTION", 180

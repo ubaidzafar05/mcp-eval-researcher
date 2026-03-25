@@ -17,7 +17,7 @@ from core.citations import (
     validate_source_integrity,
 )
 from core.claim_extractor import build_fallback_extraction, extract_claims
-from core.config import report_length_word_range
+from core.config import report_length_word_range, token_budget_for_task, timeout_for_task
 from core.models import Citation, SubReport
 from core.pruning import prune_context_docs
 from core.query_profile import profile_query, safe_analysis_policy
@@ -428,6 +428,8 @@ def create_synthesizer_node(runtime: GraphRuntime):
                         system_msg,
                         user_msg,
                         deep_mode=True,
+                        max_tokens=token_budget_for_task(runtime.config, "synthesis"),
+                        timeout=timeout_for_task(runtime.config, "synthesis"),
                     )
             except Exception as exc:
                 if _is_timeout_error(exc):
@@ -613,6 +615,8 @@ def create_synthesizer_node(runtime: GraphRuntime):
                     system_msg,
                     user_msg,
                     deep_mode=deep_mode,
+                    max_tokens=token_budget_for_task(runtime.config, "synthesis"),
+                    timeout=timeout_for_task(runtime.config, "synthesis"),
                 )
             except Exception:  # noqa: BLE001
                 report = build_fail_closed_report(
@@ -721,6 +725,8 @@ def create_synthesizer_node(runtime: GraphRuntime):
                 system_msg,
                 user_msg,
                 deep_mode=deep_mode,
+                max_tokens=token_budget_for_task(runtime.config, "synthesis"),
+                timeout=timeout_for_task(runtime.config, "synthesis"),
             )
         except Exception as exc:
             reason = "llm_failed"
