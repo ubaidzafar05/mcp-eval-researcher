@@ -139,16 +139,34 @@ def _gapfill_docs(
     return docs
 
 
-def _build_subreport_fallback(subtopic: SubTopic, reason: str) -> SubReport:
-    content = (
-        "## Subtopic Answer\n"
-        f"Evidence for **{subtopic.facet}** is currently constrained. The branch could not produce enough "
-        "verified support for a high-confidence sub-report.\n\n"
-        "## Claims\n"
-        f"- Constrained: branch failed due to `{reason}`.\n\n"
-        "## Evidence Gaps\n"
-        "- Missing corroborated sources and/or high-signal evidence for this facet."
-    )
+def _build_subreport_fallback(
+    subtopic: SubTopic,
+    reason: str,
+    docs: list[RetrievedDoc] | None = None,
+) -> SubReport:
+    lines = [
+        "## Subtopic Analysis",
+        f"Research on **{subtopic.facet}** encountered limitations ({reason.replace('_', ' ')}). "
+        "Below is the available evidence collected before the constraint was reached.",
+        "",
+    ]
+    # Include whatever raw doc content we have so the report isn't empty.
+    if docs:
+        lines.append("### Available Evidence")
+        for doc in docs[:6]:
+            snippet = (doc.snippet or doc.content or "")[:500].strip()
+            if snippet:
+                title = doc.title or "Unknown Source"
+                url = doc.url or "unknown"
+                lines.append(f"**{title}** ({url})")
+                lines.append(f"> {snippet}")
+                lines.append("")
+    lines.extend([
+        "### Evidence Gaps",
+        f"- Branch constrained due to: {reason.replace('_', ' ')}.",
+        "- Additional sources or longer processing time may improve coverage.",
+    ])
+    content = "\n".join(lines)
     return SubReport(
         sub_query=subtopic.sub_query,
         facet=subtopic.facet,
@@ -252,15 +270,39 @@ def _compose_subreport_text(
             return (resp.choices[0].message.content or "").strip()
     except Exception as exc:  # noqa: BLE001
         if _is_timeout_error(exc):
-            return (
-                "## Subtopic Answer\n"
-                "Branch synthesis timed out; returning constrained claim registry for this facet.\n\n"
-                "## Claims\n"
-                + "\n".join(
-                    f"- [{claim.claim_id}] ({claim.status}) {claim.assertion}" for claim in claims
+            # LLM timed out — build a useful sub-report directly from raw claims + docs.
+            sections = [
+                "## Subtopic Analysis",
+                f"Research on **{subtopic.facet}** collected evidence from {len(docs)} sources. "
+                "Due to synthesis time constraints the following presents the raw analytical findings.",
+                "",
+                "### Key Findings",
+            ]
+            for claim in claims:
+                citation = citation_lookup.get(claim.claim_id)
+                evidence = (citation.evidence if citation else "")[:400]
+                sections.append(
+                    f"**[{claim.claim_id}]** ({claim.status.upper()}) {claim.assertion}"
                 )
-                + "\n\n## Evidence Gaps\n- llm_timeout_subresearch"
-            ).strip()
+                if evidence:
+                    sections.append(f"> {evidence}")
+                sections.append("")
+            # Include raw doc snippets for substance
+            sections.append("### Supporting Evidence")
+            for doc in docs[:6]:
+                snippet = (doc.snippet or doc.content or "")[:500].strip()
+                if snippet:
+                    title = doc.title or "Unknown Source"
+                    url = doc.url or "unknown"
+                    sections.append(f"**{title}** ({url})")
+                    sections.append(f"> {snippet}")
+                    sections.append("")
+            sections.extend([
+                "### Evidence Gaps",
+                "- Sub-report synthesis timed out; findings are presented as-is from raw evidence.",
+                "- Further analysis may reveal additional patterns and causal mechanisms.",
+            ])
+            return "\n".join(sections).strip()
 
     fallback_lines = [
         "## Subtopic Answer",
@@ -367,12 +409,18 @@ def create_sub_research_node(runtime: GraphRuntime):
             )
         except Exception as exc:  # noqa: BLE001
             if _is_timeout_error(exc):
-                return {
-                    "sub_reports": [_build_subreport_fallback(subtopic, "llm_timeout_subresearch")],
-                    "subtopic_failures": [f"{subtopic.id}:llm_timeout_subresearch"],
-                    "logs": [f"Subtopic {subtopic.id} constrained due to LLM timeout."],
-                }
-            claims_result = None
+                # Claim extraction timed out — DON'T bail.  Use fallback
+                # extraction from raw docs and continue to sub-report composition.
+                logger.warning(
+                    "Claim extraction timed out for subtopic %s; using fallback extraction",
+                    subtopic.id,
+                )
+                claims_result = build_fallback_extraction(
+                    slice_docs,
+                    max_claims=max(1, runtime.config.subreport_min_claims),
+                )
+            else:
+                claims_result = None
         extracted_claims = list(getattr(claims_result, "claims", []) or [])
         fallback_used = bool(getattr(claims_result, "fallback_used", False))
         _emit_progress(subtopic.id, "claims_extracted", claim_count=len(extracted_claims))
@@ -417,7 +465,7 @@ def create_sub_research_node(runtime: GraphRuntime):
                     "logs": [f"Subtopic {subtopic.id} failed-closed: claim extraction failed."],
                 }
             else:
-                fallback = _build_subreport_fallback(subtopic, "claim_extraction_failed")
+                fallback = _build_subreport_fallback(subtopic, "claim_extraction_failed", docs=slice_docs)
                 return {
                     "sub_reports": [fallback],
                     "subtopic_failures": [f"{subtopic.id}:claim_extraction_failed"],

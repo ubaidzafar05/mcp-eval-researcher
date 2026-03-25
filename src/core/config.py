@@ -338,7 +338,7 @@ def load_config(overrides: dict[str, Any] | None = None) -> RunConfig:
         "stream_max_runtime_seconds": _env_int("STREAM_MAX_RUNTIME_SECONDS", 3600),
         "stream_warn_before_idle_ratio": _env_float("STREAM_WARN_BEFORE_IDLE_RATIO", 0.70),
         "llm_request_timeout_seconds_research": _env_int(
-            "LLM_REQUEST_TIMEOUT_SECONDS_RESEARCH", 90
+            "LLM_REQUEST_TIMEOUT_SECONDS_RESEARCH", 300
         ),
         "llm_request_timeout_seconds_synthesis": _env_int(
             "LLM_REQUEST_TIMEOUT_SECONDS_SYNTHESIS", 600
