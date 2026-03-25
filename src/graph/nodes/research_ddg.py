@@ -92,14 +92,17 @@ def _normalize_docs(raw_docs: list, *, deep: bool) -> list:
 
 
 def create_research_ddg_node(runtime: GraphRuntime):
+    _QUERY_TIMEOUT = max(30, runtime.config.mcp_call_timeout_seconds + 5)
+
     def _safe_web_call(query: str, k: int) -> list:
         try:
             return runtime.mcp_client.call_web_tool("ddg_search", query, k)
         except Exception as exc:  # noqa: BLE001
             logger.warning(
-                "DDG MCP call failed",
-                extra={"tool": "ddg_search", "error": str(exc)[:240]},
+                "DDG MCP call failed: %s", str(exc)[:240],
+                extra={"tool": "ddg_search"},
             )
+            print(f"DDG MCP call failed: {exc!r}")
             return []
 
     def ddg_node(state: ResearchState) -> dict:
@@ -138,11 +141,22 @@ def create_research_ddg_node(runtime: GraphRuntime):
         # Parallel query dispatch — all queries run concurrently.
         with ThreadPoolExecutor(max_workers=top_n_queries, thread_name_prefix="ddg") as pool:
             futures = [pool.submit(_safe_web_call, q, k) for q in task_queries[:top_n_queries]]
-            for future in as_completed(futures):
-                try:
-                    docs.extend(future.result())
-                except Exception:  # noqa: BLE001
-                    pass
+            try:
+                for future in as_completed(futures, timeout=_QUERY_TIMEOUT):
+                    try:
+                        docs.extend(future.result())
+                    except Exception:  # noqa: BLE001
+                        pass
+            except TimeoutError:
+                logger.warning("DDG inner query pool timed out after %ss; using partial results", _QUERY_TIMEOUT)
+                for f in futures:
+                    if f.done():
+                        try:
+                            docs.extend(f.result())
+                        except Exception:  # noqa: BLE001
+                            pass
+                    else:
+                        f.cancel()
         aggregate_stats.candidate_count = len(docs)
         provider_alerts: list[str] = []
         if any(
@@ -202,11 +216,21 @@ def create_research_ddg_node(runtime: GraphRuntime):
             refocus_queries = _peak_refocus_queries(effective_query, facets)[:2]
             with ThreadPoolExecutor(max_workers=2, thread_name_prefix="ddg_refocus") as pool:
                 futures = [pool.submit(_safe_web_call, q, max(8, k)) for q in refocus_queries]
-                for future in as_completed(futures):
-                    try:
-                        retry_docs.extend(future.result())
-                    except Exception:  # noqa: BLE001
-                        pass
+                try:
+                    for future in as_completed(futures, timeout=_QUERY_TIMEOUT):
+                        try:
+                            retry_docs.extend(future.result())
+                        except Exception:  # noqa: BLE001
+                            pass
+                except TimeoutError:
+                    for f in futures:
+                        if f.done():
+                            try:
+                                retry_docs.extend(f.result())
+                            except Exception:  # noqa: BLE001
+                                pass
+                        else:
+                            f.cancel()
             aggregate_stats.candidate_count += len(retry_docs)
             retry_normalized = _normalize_docs(retry_docs, deep=True)
             retry_docs = retry_normalized

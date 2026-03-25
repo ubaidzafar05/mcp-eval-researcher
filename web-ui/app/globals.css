@@ -6,7 +6,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-mono: var(--font-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -49,34 +50,35 @@
   --radius: 14px;
 
   /* ── Everforest Light ── */
-  --canvas: #FDF6E3;
-  --surface-1: #FFFBEF;
-  --surface-2: #F4ECD8;
-  --surface-3: #EDE5CF;
+  --canvas: #fdf6e3;
+  --surface-1: #fffbef;
+  --surface-2: #f4ecd8;
+  --surface-3: #ede5cf;
   --surface-glass: rgba(253, 246, 227, 0.82);
-  --surface-elevated: #FFFBEF;
+  --surface-elevated: #fffbef;
 
-  --text-primary: #5C6A72;
+  --text-primary: #5c6a72;
   --text-secondary: #708090;
-  --text-muted: #939F91;
+  --text-muted: #939f91;
 
-  --border-soft: rgba(92, 106, 114, 0.10);
+  --border-soft: rgba(92, 106, 114, 0.1);
   --border-glass: rgba(92, 106, 114, 0.14);
-  --border-active: #93B259;
+  --border-active: #93b259;
   --border-strong: rgba(92, 106, 114, 0.18);
 
-  --accent: #93B259;
-  --accent-strong: #7DA23A;
-  --accent-soft: rgba(147, 178, 89, 0.10);
+  --accent: #93b259;
+  --accent-strong: #7da23a;
+  --accent-soft: rgba(147, 178, 89, 0.1);
 
-  --status-teal: #83C092;
-  --status-amber: #DBBC7F;
-  --status-error: #E67E80;
+  --status-teal: #83c092;
+  --status-amber: #dbbc7f;
+  --status-error: #e67e80;
 
-  --shadow-1: 0 2px 12px rgba(92, 106, 114, 0.06), 0 1px 3px rgba(92, 106, 114, 0.04);
+  --shadow-1:
+    0 2px 12px rgba(92, 106, 114, 0.06), 0 1px 3px rgba(92, 106, 114, 0.04);
   --shadow-2: 0 8px 24px rgba(92, 106, 114, 0.08);
   --shadow-soft: 0 4px 16px rgba(92, 106, 114, 0.05);
-  --shadow-strong: 0 12px 32px rgba(92, 106, 114, 0.10);
+  --shadow-strong: 0 12px 32px rgba(92, 106, 114, 0.1);
 
   --glow-1: transparent;
   --glow-2: transparent;
@@ -89,12 +91,12 @@
   --popover: var(--surface-1);
   --popover-foreground: var(--text-primary);
   --primary: var(--accent);
-  --primary-foreground: #FFFBEF;
+  --primary-foreground: #fffbef;
   --secondary: var(--surface-2);
   --secondary-foreground: var(--text-secondary);
   --muted: var(--surface-3);
   --muted-foreground: var(--text-muted);
-  --accent-foreground: #FFFBEF;
+  --accent-foreground: #fffbef;
   --destructive: var(--status-error);
   --border: var(--border-soft);
   --input: var(--surface-2);
@@ -103,7 +105,7 @@
   --sidebar: var(--surface-1);
   --sidebar-foreground: var(--text-primary);
   --sidebar-primary: var(--accent);
-  --sidebar-primary-foreground: #FFFBEF;
+  --sidebar-primary-foreground: #fffbef;
   --sidebar-accent: var(--surface-2);
   --sidebar-accent-foreground: var(--text-secondary);
   --sidebar-border: var(--border-soft);
@@ -113,37 +115,37 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
   /* ── Everforest Dark ── */
-  --canvas: #2D353B;
-  --surface-1: #343F44;
-  --surface-2: #3D484D;
+  --canvas: #2d353b;
+  --surface-1: #343f44;
+  --surface-2: #3d484d;
   --surface-3: #475258;
   --surface-glass: rgba(45, 53, 59, 0.85);
-  --surface-elevated: #3D484D;
+  --surface-elevated: #3d484d;
 
-  --text-primary: #D3C6AA;
-  --text-secondary: #9DA9A0;
-  --text-muted: #7A8478;
+  --text-primary: #d3c6aa;
+  --text-secondary: #9da9a0;
+  --text-muted: #7a8478;
 
   --border-soft: rgba(211, 198, 170, 0.08);
   --border-glass: rgba(211, 198, 170, 0.12);
-  --border-active: #A7C080;
+  --border-active: #a7c080;
   --border-strong: rgba(211, 198, 170, 0.16);
 
-  --accent: #A7C080;
-  --accent-strong: #A7C080;
+  --accent: #a7c080;
+  --accent-strong: #a7c080;
   --accent-soft: rgba(167, 192, 128, 0.12);
 
   --primary: var(--accent);
-  --primary-foreground: #2D353B;
+  --primary-foreground: #2d353b;
 
-  --status-teal: #83C092;
-  --status-amber: #DBBC7F;
-  --status-error: #E67E80;
+  --status-teal: #83c092;
+  --status-amber: #dbbc7f;
+  --status-error: #e67e80;
 
   --shadow-1: 0 2px 12px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.15);
   --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.20);
-  --shadow-strong: 0 12px 32px rgba(0, 0, 0, 0.40);
+  --shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.2);
+  --shadow-strong: 0 12px 32px rgba(0, 0, 0, 0.4);
 
   --glow-1: transparent;
   --glow-2: transparent;
@@ -157,7 +159,8 @@
 body {
   background: var(--canvas);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   line-height: 1.6;
 }
 
@@ -165,7 +168,8 @@ h1,
 h2,
 h3,
 h4 {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   letter-spacing: -0.01em;
   font-weight: 700;
 }
@@ -188,10 +192,12 @@ svg {
 
 @keyframes gentlePulse {
   0% {
-    box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent-strong) 35%, transparent);
+    box-shadow: 0 0 0 0
+      color-mix(in oklab, var(--accent-strong) 35%, transparent);
   }
   100% {
-    box-shadow: 0 0 0 12px color-mix(in oklab, var(--accent-strong) 0%, transparent);
+    box-shadow: 0 0 0 12px
+      color-mix(in oklab, var(--accent-strong) 0%, transparent);
   }
 }
 
@@ -201,7 +207,12 @@ svg {
 
 .skeleton-line {
   border-radius: 999px;
-  background: linear-gradient(90deg, rgba(148, 163, 184, 0.15), rgba(148, 163, 184, 0.35), rgba(148, 163, 184, 0.15));
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.15),
+    rgba(148, 163, 184, 0.35),
+    rgba(148, 163, 184, 0.15)
+  );
   background-size: 200% 100%;
   animation: edgeFlow 1.2s ease-in-out infinite;
 }
@@ -609,7 +620,8 @@ svg {
   border: 1px solid var(--border-soft);
   border-radius: 12px;
   padding: 0.65rem 0.85rem;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   font-size: 0.88rem;
   line-height: 1.5;
   color: var(--text-primary);
@@ -650,7 +662,10 @@ svg {
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    color 0.15s;
   font-family: inherit;
 }
 

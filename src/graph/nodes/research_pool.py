@@ -58,6 +58,11 @@ def create_research_pool_node(runtime: GraphRuntime):
     ddg_node = create_research_ddg_node(runtime)
     firecrawl_node = create_research_firecrawl_node(runtime)
 
+    # Hard deadline for the entire pool — if a provider stalls we don't wait forever.
+    # mcp_call_timeout_seconds is the per-call budget; allow 2× that for the whole pool
+    # (providers each issue several parallel queries so the pool should finish sooner).
+    _POOL_TIMEOUT = max(60, runtime.config.mcp_call_timeout_seconds * 2)
+
     def research_pool_node(state: ResearchState) -> dict:
         # Run all 3 providers in parallel — cuts pool time from sum() to max().
         results: dict[str, dict] = {}
@@ -67,21 +72,40 @@ def create_research_pool_node(runtime: GraphRuntime):
                 pool.submit(ddg_node, state): "ddg",
                 pool.submit(firecrawl_node, state): "firecrawl",
             }
-            for future in as_completed(futures):
-                provider = futures[future]
-                try:
-                    results[provider] = future.result()
-                except Exception:  # noqa: BLE001
-                    logger.warning("Provider %s failed in parallel pool", provider)
-                    results[provider] = {}
-                try:
-                    dispatch_custom_event(
-                        "provider_complete",
-                        {"provider": provider, "stage": "research",
-                         "doc_count": len(results[provider].get(f"{provider}_docs", []))},
-                    )
-                except Exception:  # noqa: BLE001
-                    pass  # dispatch may fail outside async context
+            try:
+                for future in as_completed(futures, timeout=_POOL_TIMEOUT):
+                    provider = futures[future]
+                    try:
+                        results[provider] = future.result()
+                    except Exception:  # noqa: BLE001
+                        logger.warning("Provider %s failed in parallel pool", provider)
+                        results[provider] = {}
+                    try:
+                        dispatch_custom_event(
+                            "provider_complete",
+                            {"provider": provider, "stage": "research",
+                             "doc_count": len(results[provider].get(f"{provider}_docs", []))},
+                        )
+                    except Exception:  # noqa: BLE001
+                        pass  # dispatch may fail outside async context
+            except TimeoutError:
+                # Pool deadline exceeded — collect whatever finished and move on.
+                logger.warning(
+                    "Research pool hit %ss deadline; proceeding with partial results (%s/%s providers)",
+                    _POOL_TIMEOUT,
+                    len(results),
+                    len(futures),
+                )
+                for future, provider in futures.items():
+                    if provider not in results:
+                        if future.done():
+                            try:
+                                results[provider] = future.result()
+                            except Exception:  # noqa: BLE001
+                                results[provider] = {}
+                        else:
+                            future.cancel()
+                            results[provider] = {}
 
         tavily_updates = results.get("tavily", {})
         ddg_updates = results.get("ddg", {})

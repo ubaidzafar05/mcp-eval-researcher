@@ -294,6 +294,7 @@ class MultiServerClient:
             return value
         except Exception as exc:  # noqa: BLE001
             if self.transport_active and self.config.mcp_mode != "transport":
+                self.transport_active = False  # disable transport to avoid re-trying dead session
                 self.fallback_active = True
                 self.fallback_reason = f"transport web call failed: {exc}"
                 record_transport_fallback(self.fallback_reason)
@@ -359,6 +360,7 @@ class MultiServerClient:
             return value
         except Exception as exc:  # noqa: BLE001
             if self.transport_active and self.config.mcp_mode != "transport":
+                self.transport_active = False  # disable transport to avoid re-trying dead session
                 self.fallback_active = True
                 self.fallback_reason = f"transport local call failed: {exc}"
                 record_transport_fallback(self.fallback_reason)

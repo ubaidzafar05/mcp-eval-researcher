@@ -127,9 +127,12 @@ class _ManagedSession:
         self,
         context_factory: Callable[[], AbstractAsyncContextManager[tuple[Any, ...]]],
         call_timeout_seconds: int,
+        *,
+        serialize_calls: bool = False,
     ):
         self.context_factory = context_factory
         self.call_timeout_seconds = call_timeout_seconds
+        self._serialize_calls = serialize_calls
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
         self._ready_event = threading.Event()
@@ -185,7 +188,11 @@ class _ManagedSession:
                 ) as session:
                     await session.initialize()
                     self._session = session
-                    self._call_lock = asyncio.Lock()
+                    # Only serialize calls for stdio transport where the
+                    # single stdin/stdout pipe cannot multiplex.  For
+                    # streamable-http each request is an independent HTTP
+                    # POST so concurrent calls are safe.
+                    self._call_lock = asyncio.Lock() if self._serialize_calls else None
                     self._shutdown_event = asyncio.Event()
                     self._ready_event.set()
                     await self._shutdown_event.wait()
@@ -200,16 +207,24 @@ class _ManagedSession:
 
     async def _list_tools_async(self) -> list[str]:
         assert self._session is not None
-        assert self._call_lock is not None
-        async with self._call_lock:
+        if self._call_lock is not None:
+            async with self._call_lock:
+                result = await self._session.list_tools()
+        else:
             result = await self._session.list_tools()
         return [tool.name for tool in result.tools]
 
     async def _call_tool_async(self, name: str, arguments: dict[str, Any]) -> Any:
         assert self._session is not None
-        assert self._call_lock is not None
         timeout = timedelta(seconds=max(1, self.call_timeout_seconds))
-        async with self._call_lock:
+        if self._call_lock is not None:
+            async with self._call_lock:
+                result = await self._session.call_tool(
+                    name=name,
+                    arguments=arguments,
+                    read_timeout_seconds=timeout,
+                )
+        else:
             result = await self._session.call_tool(
                 name=name,
                 arguments=arguments,
@@ -271,12 +286,14 @@ class TransportRuntime:
                     StdioServerParameters(command=web_cmd, args=web_args)
                 ),
                 call_timeout_seconds=config.mcp_call_timeout_seconds,
+                serialize_calls=True,
             )
             self.local_session = _ManagedSession(
                 context_factory=lambda: stdio_client(
                     StdioServerParameters(command=local_cmd, args=local_args)
                 ),
                 call_timeout_seconds=config.mcp_call_timeout_seconds,
+                serialize_calls=True,
             )
             self.web_endpoint = f"stdio:{config.mcp_web_server_cmd}"
             self.local_endpoint = f"stdio:{config.mcp_local_server_cmd}"

@@ -5,6 +5,8 @@ import contextlib
 import json
 import logging
 import os
+import threading
+import time
 import uuid
 from collections.abc import AsyncIterator
 from typing import Literal
@@ -677,10 +679,32 @@ async def _with_heartbeat(
                 await producer_task
 
 
+# ---------------------------------------------------------------------------
+# Health-check cache — probing Ollama on every /health request saturates the
+# Uvicorn thread pool while a pipeline is running, causing Docker to mark the
+# container unhealthy.  Cache the expensive diagnostics for 30 s.
+# ---------------------------------------------------------------------------
+_HEALTH_CACHE: dict = {}
+_HEALTH_CACHE_LOCK = threading.Lock()
+_HEALTH_CACHE_TTL = 30  # seconds
+
+
+def _cached_startup_diagnostics(config) -> dict:
+    now = time.monotonic()
+    with _HEALTH_CACHE_LOCK:
+        if _HEALTH_CACHE and now - _HEALTH_CACHE.get("_ts", 0) < _HEALTH_CACHE_TTL:
+            return _HEALTH_CACHE["data"]
+    fresh = _startup_diagnostics(config)
+    with _HEALTH_CACHE_LOCK:
+        _HEALTH_CACHE["data"] = fresh
+        _HEALTH_CACHE["_ts"] = now
+    return fresh
+
+
 @app.get("/health")
 def health() -> dict[str, object]:
     cfg = load_config({"interactive_hitl": False})
-    startup = _startup_diagnostics(cfg)
+    startup = _cached_startup_diagnostics(cfg)
     return {
         "status": "ok",
         "startup_guard_mode": startup["startup_guard_mode"],

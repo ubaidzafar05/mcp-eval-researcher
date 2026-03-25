@@ -38,8 +38,8 @@ def _safe_web_call(
         return runtime.mcp_client.call_web_tool(tool, query, k)
     except Exception as exc:  # noqa: BLE001
         logger.warning(
-            "MCP tool call failed",
-            extra={"tool": tool, "error": str(exc)[:240]},
+            "MCP tool call failed: %s", str(exc)[:240],
+            extra={"tool": tool},
         )
         return []
 
@@ -395,37 +395,59 @@ def create_sub_research_node(runtime: GraphRuntime):
             plan_complexity="medium",
         )
         claims_result = None
-        try:
-            client = runtime.get_llm_client(
-                selection.provider,
-                request_timeout_seconds=runtime.config.llm_request_timeout_seconds_research,
-            )
-            claims_result = extract_claims(
+        _claim_had_error = False
+        # In relaxed mode skip LLM claim extraction entirely — build directly
+        # from raw doc snippets.  This avoids spending 90 s+ waiting for Groq
+        # rate-limit timeouts when the synthesizer will paraphrase anyway.
+        if runtime.config.relaxed_quality_mode:
+            claims_result = build_fallback_extraction(
                 slice_docs,
-                client,
-                selection.provider,
-                selection.model_name,
-                max_docs=min(12, len(slice_docs)),
+                max_claims=max(3, runtime.config.subreport_min_claims),
             )
-        except Exception as exc:  # noqa: BLE001
-            if _is_timeout_error(exc):
-                # Claim extraction timed out — DON'T bail.  Use fallback
-                # extraction from raw docs and continue to sub-report composition.
+        else:
+            try:
+                client = runtime.get_llm_client(
+                    selection.provider,
+                    request_timeout_seconds=runtime.config.llm_request_timeout_seconds_research,
+                )
+                claims_result = extract_claims(
+                    slice_docs,
+                    client,
+                    selection.provider,
+                    selection.model_name,
+                    max_docs=min(12, len(slice_docs)),
+                )
+                # extract_claims() catches internally — check for error result
+                if getattr(claims_result, "error", None):
+                    _claim_had_error = True
+                    logger.warning(
+                        "Claim extraction returned error for subtopic %s: %s; using fallback",
+                        subtopic.id,
+                        claims_result.error,
+                    )
+                    claims_result = build_fallback_extraction(
+                        slice_docs,
+                        max_claims=max(1, runtime.config.subreport_min_claims),
+                    )
+            except Exception as exc:  # noqa: BLE001
+                _claim_had_error = True
                 logger.warning(
-                    "Claim extraction timed out for subtopic %s; using fallback extraction",
+                    "Claim extraction exception for subtopic %s: %s; using fallback",
                     subtopic.id,
+                    str(exc)[:120],
                 )
                 claims_result = build_fallback_extraction(
                     slice_docs,
                     max_claims=max(1, runtime.config.subreport_min_claims),
                 )
-            else:
-                claims_result = None
         extracted_claims = list(getattr(claims_result, "claims", []) or [])
         fallback_used = bool(getattr(claims_result, "fallback_used", False))
         _emit_progress(subtopic.id, "claims_extracted", claim_count=len(extracted_claims))
+        # Only retry on first-time empty when NO error occurred (avoid burning
+        # another full timeout cycle on a known-bad provider response).
         if (
             not extracted_claims
+            and not _claim_had_error
             and runtime.config.subreport_failure_policy == "retry_once"
         ):
             retry_selection = runtime.model_router.select_model(
@@ -448,7 +470,8 @@ def create_sub_research_node(runtime: GraphRuntime):
                     retry_selection.model_name,
                     max_docs=min(12, len(slice_docs)),
                 )
-                extracted_claims = list(getattr(retry_result, "claims", []) or [])
+                if not getattr(retry_result, "error", None):
+                    extracted_claims = list(getattr(retry_result, "claims", []) or [])
             except Exception:  # noqa: BLE001
                 extracted_claims = []
         if not extracted_claims:
