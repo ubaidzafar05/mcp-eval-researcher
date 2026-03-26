@@ -18,7 +18,7 @@ from core.citations import (
 )
 from core.claim_extractor import build_fallback_extraction, extract_claims
 from core.config import report_length_word_range, token_budget_for_task, timeout_for_task
-from core.models import Citation, SubReport
+from core.models import Citation, RetrievedDoc, SubReport
 from core.pruning import prune_context_docs
 from core.query_profile import profile_query, safe_analysis_policy
 from core.report_formatter import build_fail_closed_report, format_report_with_sources
@@ -313,6 +313,73 @@ def _build_timeout_constrained_report(sub_reports: list[SubReport]) -> str:
     return "\n".join(lines).strip()
 
 
+def _word_count(text: str) -> int:
+    return len(re.findall(r"\b[\w'-]+\b", text or ""))
+
+
+def _doc_budget_for_report_length(report_length: str, *, deep_mode: bool) -> int:
+    budgets = {
+        "brief": 6,
+        "standard": 10,
+        "comprehensive": 14,
+        "deep": 18,
+    }
+    default_budget = 12 if deep_mode else 10
+    base = budgets.get(report_length, default_budget)
+    return max(base, 14 if deep_mode else base)
+
+
+def _digest_doc_limit(report_length: str, *, deep_mode: bool) -> int:
+    limits = {
+        "brief": 4,
+        "standard": 6,
+        "comprehensive": 10,
+        "deep": 12,
+    }
+    default_limit = 8 if deep_mode else 6
+    base = limits.get(report_length, default_limit)
+    return max(base, 10 if deep_mode else base)
+
+
+def _build_source_digest(docs: list[RetrievedDoc], *, max_docs: int = 10, max_chars: int = 220) -> str:
+    rows: list[str] = []
+    for index, doc in enumerate(docs[:max_docs], start=1):
+        title = (doc.title or "Untitled source").strip()
+        url = normalize_url(doc.url) or "URL unavailable"
+        provider = (doc.provider or "unknown").strip()
+        summary = clean_evidence_text(doc.snippet or doc.content, max_chars=max_chars)
+        rows.append(
+            f"[S{index}] {title}\n"
+            f"URL: {url}\n"
+            f"Provider: {provider}\n"
+            f"Summary: {summary or 'No usable summary available.'}"
+        )
+    return "\n\n".join(rows)
+
+
+def _build_doc_citations(
+    docs: list[RetrievedDoc],
+    *,
+    max_chars: int,
+    doc_tier_fn,
+    doc_confidence_fn,
+) -> list[Citation]:
+    citations: list[Citation] = []
+    for index, doc in enumerate(docs, start=1):
+        citations.append(
+            Citation(
+                claim_id=f"C{index}",
+                source_url=normalize_url(doc.url),
+                title=doc.title,
+                provider=doc.provider,
+                evidence=clean_evidence_text(doc.snippet or doc.content, max_chars=max_chars),
+                source_tier=doc_tier_fn(doc),
+                confidence=doc_confidence_fn(doc),
+            )
+        )
+    return dedupe_citations(citations)
+
+
 def create_synthesizer_node(runtime: GraphRuntime):
     from core.synthesis.config_helpers import (
         adaptive_min_external_sources,
@@ -337,6 +404,57 @@ def create_synthesizer_node(runtime: GraphRuntime):
         intent_note,
         policy_note,
     )
+
+    def _expand_report_if_needed(
+        *,
+        report: str,
+        system_msg: str,
+        source_digest: str,
+        query: str,
+        min_words: int,
+        max_words: int,
+        model_selection,
+    ) -> str:
+        current_words = _word_count(report)
+        if current_words >= max(1200, int(min_words * 0.82)):
+            return report
+
+        expansion_prompt = (
+            f"Query: {query}\n\n"
+            f"The current draft is too short at about {current_words} words. "
+            f"Rewrite and expand it to approximately {min_words:,}-{max_words:,} words.\n"
+            "Preserve the exact section order and headings.\n"
+            "Add more topical coverage, concrete examples, quantitative detail, cross-source comparisons, and direct references to additional sources from the digest.\n"
+            "Every major section must contain multiple substantive paragraphs.\n"
+            "Do not pad with fluff. Expand with analysis, examples, implications, and cited evidence.\n\n"
+            f"Source Digest:\n{source_digest}\n\n"
+            f"Current Draft:\n{report}"
+        )
+
+        try:
+            with runtime.model_router.use_tier(model_selection.tier):
+                client = runtime.get_llm_client(
+                    model_selection.provider,
+                    request_timeout_seconds=min(
+                        runtime.config.llm_request_timeout_seconds_synthesis,
+                        240,
+                    ),
+                )
+                expanded = call_llm(
+                    client,
+                    model_selection.provider,
+                    model_selection.model_name,
+                    system_msg,
+                    expansion_prompt,
+                    deep_mode=True,
+                    max_tokens=token_budget_for_task(runtime.config, "synthesis"),
+                    timeout=min(timeout_for_task(runtime.config, "synthesis"), 240.0),
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Report expansion pass failed: %s", exc)
+            return report
+
+        return expanded if _word_count(expanded) > current_words else report
 
     def synthesizer_node(state: ResearchState) -> dict:
         # Subtopic map-reduce path: merge branch sub-reports as primary synthesis input.
@@ -537,6 +655,8 @@ def create_synthesizer_node(runtime: GraphRuntime):
 
         min_words = effective_min_words(runtime, deep_mode=deep_mode)
         min_claims = effective_min_claims(runtime, deep_mode=deep_mode)
+        doc_budget = _doc_budget_for_report_length(runtime.config.report_length, deep_mode=deep_mode)
+        digest_doc_limit = _digest_doc_limit(runtime.config.report_length, deep_mode=deep_mode)
 
         # 2. Process Documents
         external_pool = unique_docs_by_url(
@@ -552,9 +672,9 @@ def create_synthesizer_node(runtime: GraphRuntime):
             external_pool,
             source_quality_bar=effective_source_quality_bar(runtime),
             min_tier_ab_sources=effective_min_ab_sources(runtime),
-        )[: 20 if deep_mode else 8]
+        )[:doc_budget]
         if not citable_docs and external_pool:
-            citable_docs = external_pool[: 20 if deep_mode else 8]
+            citable_docs = external_pool[:doc_budget]
 
         pruned_docs = prune_context_docs(
             citable_docs,
@@ -571,7 +691,7 @@ def create_synthesizer_node(runtime: GraphRuntime):
                     continue
                 pruned_docs.append(doc)
                 seen_urls.add(url)
-                target = min(len(citable_docs), 12 if deep_mode else 6)
+                target = min(len(citable_docs), max(6, digest_doc_limit))
                 if len(pruned_docs) >= target:
                     break
 
@@ -644,38 +764,38 @@ def create_synthesizer_node(runtime: GraphRuntime):
 
         # 3. Pass 1: Extraction & Context Building
         extraction_result = None
-        try:
-            extraction_model = runtime.model_router.select_model(
-                task_type="research",
-                context_size=sum(len((d.snippet or d.content or "")[:2000]) for d in pruned_docs),
-                latency_budget_ms=6000 if deep_mode else 3500,
-                tenant_tier=tenant_tier,
-                tenant_context=tenant_context,
-                plan_complexity="medium",
-            )
-            extraction_client = runtime.get_llm_client(
-                extraction_model.provider,
-                request_timeout_seconds=runtime.config.llm_request_timeout_seconds_research,
-            )
-            extraction_result = extract_claims(
-                pruned_docs,
-                extraction_client,
-                extraction_model.provider,
-                extraction_model.model_name,
-                max_docs=16 if deep_mode else 8,
-            )
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Claim extraction pass failed: %s", exc)
-            extraction_result = None
-
         if runtime.config.relaxed_quality_mode:
-            if not extraction_result or not getattr(extraction_result, "claims", None):
-                extraction_result = build_fallback_extraction(
-                    pruned_docs,
-                    max_claims=max(1, runtime.config.subreport_min_claims),
+            extraction_result = build_fallback_extraction(
+                pruned_docs,
+                max_claims=max(1, runtime.config.subreport_min_claims),
+            )
+        else:
+            try:
+                extraction_model = runtime.model_router.select_model(
+                    task_type="research",
+                    context_size=sum(len((d.snippet or d.content or "")[:2000]) for d in pruned_docs),
+                    latency_budget_ms=6000 if deep_mode else 3500,
+                    tenant_tier=tenant_tier,
+                    tenant_context=tenant_context,
+                    plan_complexity="medium",
                 )
+                extraction_client = runtime.get_llm_client(
+                    extraction_model.provider,
+                    request_timeout_seconds=runtime.config.llm_request_timeout_seconds_research,
+                )
+                extraction_result = extract_claims(
+                    pruned_docs,
+                    extraction_client,
+                    extraction_model.provider,
+                    extraction_model.model_name,
+                    max_docs=16 if deep_mode else 8,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Claim extraction pass failed: %s", exc)
+                extraction_result = None
 
         source_index = {f"C{i + 1}": doc for i, doc in enumerate(pruned_docs)}
+        source_digest = _build_source_digest(pruned_docs, max_docs=digest_doc_limit)
 
         # 4. Pass 2: Analytical Synthesis
         system_msg = (
@@ -696,11 +816,15 @@ def create_synthesizer_node(runtime: GraphRuntime):
             "- Prioritize cited evidence but do NOT leave sections thin — expand with deep analysis.\n\n"
             "DEPTH REQUIREMENTS:\n"
             f"- Write a thorough, well-structured report of {wmin:,}-{wmax:,} words.\n"
-            "- Each major section must have ### subsections.\n"
-            "- Include real-world examples and practical implications.\n"
+            "- Each major section must have 2-4 substantial paragraphs and use subsections where helpful.\n"
+            "- Include real-world examples, links, and practical implications.\n"
             "- Write in professional analytical prose, not bulleted lists.\n"
-            "- Do NOT hedge excessively — present findings assertively with confidence labels.\n\n"
-            f"Extracted Claims:\n{_format_extracted_claims(extraction_result)}\n"
+            "- Do NOT hedge excessively — present findings assertively with confidence labels.\n"
+            "- Use multiple distinct sources across the report, not just one repeated citation.\n"
+            "- Pull concrete examples, links, and quantitative details from the source digest.\n"
+            "- Compare sources when they disagree, and explain why that disagreement matters.\n\n"
+            f"Extracted Claims:\n{_format_extracted_claims(extraction_result)}\n\n"
+            f"Source Digest:\n{source_digest}\n"
         )
 
         model_selection = runtime.model_router.select_model(
@@ -728,6 +852,15 @@ def create_synthesizer_node(runtime: GraphRuntime):
                 max_tokens=token_budget_for_task(runtime.config, "synthesis"),
                 timeout=timeout_for_task(runtime.config, "synthesis"),
             )
+            report = _expand_report_if_needed(
+                report=report,
+                system_msg=system_msg,
+                source_digest=source_digest,
+                query=state["query"],
+                min_words=min_words,
+                max_words=wmax,
+                model_selection=model_selection,
+            )
         except Exception as exc:
             reason = "llm_failed"
             if _is_timeout_error(exc):
@@ -745,7 +878,12 @@ def create_synthesizer_node(runtime: GraphRuntime):
             }
 
         # 5. Post-Process & Quality Gate
-        citations: list[Citation] = []
+        citations = _build_doc_citations(
+            pruned_docs,
+            max_chars=runtime.config.max_evidence_quote_chars,
+            doc_tier_fn=doc_tier,
+            doc_confidence_fn=doc_confidence,
+        )
         for cid in extract_claim_ids(report):
             if doc := source_index.get(cid):
                 citations.append(

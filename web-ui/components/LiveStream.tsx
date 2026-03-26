@@ -13,6 +13,8 @@ interface LiveStreamProps {
   streamState: "idle" | "connecting" | "running" | "final" | "error";
   hasFinalReport: boolean;
   nowTick: number;
+  activeStage: PipelineStage;
+  stageStartedAt: number | null;
 }
 
 interface TraceRow {
@@ -252,16 +254,15 @@ function buildPipelineNodes(
   }));
 }
 
-export function LiveStream({ logs, streamState, hasFinalReport, nowTick }: LiveStreamProps) {
+export function LiveStream({
+  logs,
+  streamState,
+  hasFinalReport,
+  nowTick,
+  activeStage,
+  stageStartedAt,
+}: LiveStreamProps) {
   const monitorRef = useRef<HTMLDivElement>(null);
-
-  const activeSince = useMemo(() => {
-    // Find the first non-heartbeat event for the current stage to calculate elapsed time
-    const meaningful = logs.filter((log) => !isHeartbeatStatus(log));
-    if (meaningful.length === 0) return null;
-    const last = meaningful[meaningful.length - 1];
-    return new Date(last.timestamp).getTime(); // Note: relying on robust timestamp if available, or just the first time we see the log in the parent.
-  }, [logs]);
 
   useEffect(() => {
     const viewport = monitorRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null;
@@ -275,7 +276,10 @@ export function LiveStream({ logs, streamState, hasFinalReport, nowTick }: LiveS
 
   const visibleRows = useMemo(() => compactLogs(logs), [logs]);
 
-  const elapsedSec = activeSince ? Math.max(0, Math.floor((nowTick - activeSince) / 1000)) : undefined;
+  const elapsedSec =
+    stageStartedAt !== null && streamState !== "idle" && streamState !== "final"
+      ? Math.max(0, Math.floor((nowTick - stageStartedAt) / 1000))
+      : undefined;
 
   const nodes = useMemo(
     () => buildPipelineNodes(logs, streamState, hasFinalReport, elapsedSec),
@@ -299,11 +303,14 @@ export function LiveStream({ logs, streamState, hasFinalReport, nowTick }: LiveS
   }, [logs]);
 
   const latestStage = useMemo(() => {
+    if (streamState === "running" || streamState === "connecting") {
+      return STAGE_LABEL[activeStage];
+    }
     const activeNode = nodes.find((node) => node.state === "active" || node.state === "error");
     if (activeNode) return activeNode.label;
     if (streamState === "final") return "Final";
     return "Waiting";
-  }, [nodes, streamState]);
+  }, [activeStage, nodes, streamState]);
 
   return (
     <div ref={monitorRef} className="monitor-shell">

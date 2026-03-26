@@ -162,7 +162,11 @@ def render_sources_ledger(
 ) -> str:
     filtered = filter_citations_by_policy(citations, source_policy=source_policy)
     if report_structure_mode == "investigative":
-        rows: list[str] = []
+        rows: list[str] = [
+            "### Full Source Ledger (Heuristic Source Types)",
+            "_Source Type is inferred heuristically from source tier metadata._",
+            "",
+        ]
     else:
         rows = [
             "### Full Source Ledger (Detailed Table)",
@@ -179,8 +183,10 @@ def render_sources_ledger(
         provider = _safe_text(citation.provider.strip() or "unknown", max_chars=28)
         evidence = _safe_text(citation.evidence, max_chars=180)
         if report_structure_mode == "investigative":
+            source_type = _source_type_from_tier(citation.source_tier or "")
             rows.append(f"- **{title}**")
             rows.append(f"  - Source: {provider}")
+            rows.append(f"  - Source Type: {source_type}")
             rows.append(f"  - URL: {url}")
             if evidence:
                 rows.append(f"  - Evidence: {evidence}")

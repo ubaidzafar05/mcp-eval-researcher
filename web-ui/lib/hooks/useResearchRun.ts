@@ -84,6 +84,31 @@ function shouldMarkHeartbeat(data: StreamPayload): boolean {
   return msg.includes("still processing sources and synthesis") || msg.includes("still running");
 }
 
+function normalizeStageKey(payload: StreamPayload): string {
+  const raw = String(payload.active_stage || payload.stage || "").toLowerCase();
+  if (
+    raw === "starting" ||
+    raw === "accepted" ||
+    raw === "connecting" ||
+    raw === "connected" ||
+    raw === "decomposition" ||
+    raw === "fallback" ||
+    raw === "queued"
+  ) {
+    return "planning";
+  }
+  if (raw === "merge" || raw === "self_correction" || raw === "self_correction_retry") {
+    return "synthesis";
+  }
+  if (raw === "eval_gate" || raw === "hitl") {
+    return "evaluation";
+  }
+  if (raw === "finalize") {
+    return "finalizing";
+  }
+  return raw || "planning";
+}
+
 function toLogEvent(payload: StreamPayload, type: LogEvent["type"]): Omit<LogEvent, "timestamp"> {
   return {
     type,
@@ -125,12 +150,14 @@ export function useResearchRun() {
   const [startupReasonCodes, setStartupReasonCodes] = useState<string[]>([]);
   const [bannerReason, setBannerReason] = useState<RunBannerReason | null>(null);
   const [lastProgressAt, setLastProgressAt] = useState<number | null>(null);
+  const [activeStage, setActiveStage] = useState<string>("planning");
   const [nowTick, setNowTick] = useState<number>(Date.now());
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const finalReceivedRef = useRef(false);
   const firstEventReceivedRef = useRef(false);
   const viewportYRef = useRef(0);
+  const activeStageRef = useRef<string>("planning");
 
   const addLog = useCallback((log: LogEvent) => {
     setLogs((prev) => [...prev, log]);
@@ -163,6 +190,8 @@ export function useResearchRun() {
     setStartupReasonCodes([]);
     setBannerReason(null);
     setLastProgressAt(null);
+    setActiveStage("planning");
+    activeStageRef.current = "planning";
     finalReceivedRef.current = false;
     firstEventReceivedRef.current = false;
     requestAnimationFrame(() => window.scrollTo({ top: viewportYRef.current, behavior: "auto" }));
@@ -174,6 +203,8 @@ export function useResearchRun() {
     setStreamState("error");
     setReportNotice("Run was stopped manually before completion.");
     setBannerReason("stream_timeout");
+    setActiveStage("finalizing");
+    activeStageRef.current = "finalizing";
     addLog(withTimestamp({ type: "error", message: "Run stopped by user." }));
     setLastProgressAt(Date.now());
   }, [addLog]);
@@ -193,13 +224,19 @@ export function useResearchRun() {
       }
     }
     setStreamState("final");
+    setActiveStage("final");
+    activeStageRef.current = "final";
+    setLastProgressAt(Date.now());
     setReportNotice("Final report received.");
   }, []);
 
   const handleStatusPayload = useCallback(
     (data: StreamPayload) => {
       const isHeartbeat = shouldMarkHeartbeat(data);
-      if (!isHeartbeat) {
+      const nextStage = normalizeStageKey(data);
+      if (nextStage && nextStage !== activeStageRef.current) {
+        activeStageRef.current = nextStage;
+        setActiveStage(nextStage);
         setLastProgressAt(Date.now());
       }
       const codes = normalizeReasonCodes(data.reason_codes);
@@ -234,7 +271,6 @@ export function useResearchRun() {
 
   const handleTokenPayload = useCallback(
     (data: StreamPayload) => {
-      setLastProgressAt(Date.now());
       setStreamState((prev) => (prev === "connecting" ? "running" : prev));
       addLog(withTimestamp(toLogEvent(data, "token")));
     },
@@ -244,6 +280,8 @@ export function useResearchRun() {
   const handleDonePayload = useCallback(
     (data: StreamPayload, closeStream: () => void) => {
       setLastProgressAt(Date.now());
+      setActiveStage("final");
+      activeStageRef.current = "final";
       addLog(withTimestamp(toLogEvent(data, "done")));
       closeStream();
       setIsSearching(false);
@@ -270,6 +308,8 @@ export function useResearchRun() {
       closeStream();
       setIsSearching(false);
       setStreamState("error");
+      setActiveStage(normalizeStageKey(data));
+      activeStageRef.current = normalizeStageKey(data);
       const banner = bannerFromMessage(data.message) ?? "stream_timeout";
       setBannerReason(banner);
       setReportNotice(data.message || "The stream failed before report completion.");
@@ -290,6 +330,8 @@ export function useResearchRun() {
       setStartupReasonCodes([]);
       setBannerReason(null);
       setLastProgressAt(Date.now());
+      setActiveStage("planning");
+      activeStageRef.current = "planning";
       finalReceivedRef.current = false;
       firstEventReceivedRef.current = false;
       addLog(
@@ -385,6 +427,8 @@ export function useResearchRun() {
       closeStream();
       setIsSearching(false);
       setLastProgressAt(Date.now());
+      setActiveStage("planning");
+      activeStageRef.current = "planning";
       if (!finalReceivedRef.current) {
         setStreamState("error");
         setBannerReason("backend_unavailable");
@@ -472,6 +516,7 @@ export function useResearchRun() {
     startupReasonCodes,
     bannerReason,
     lastProgressAt,
+    activeStage,
     nowTick,
     startRun,
     stopRun,

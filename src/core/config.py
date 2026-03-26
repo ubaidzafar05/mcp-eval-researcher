@@ -88,18 +88,18 @@ REPORT_LENGTH_PRESETS: dict[str, dict[str, int]] = {
 
 # Token budgets per report_length × task.  Values are max_tokens for the LLM call.
 REPORT_LENGTH_TOKEN_BUDGET: dict[str, dict[str, int]] = {
-    "brief":         {"synthesis": 2048,  "subreport": 1536, "correction": 2048},
-    "standard":      {"synthesis": 4096,  "subreport": 2048, "correction": 4096},
-    "comprehensive": {"synthesis": 8192,  "subreport": 4096, "correction": 8192},
-    "deep":          {"synthesis": 12288, "subreport": 4096, "correction": 12288},
+    "brief":         {"synthesis": 3072,  "subreport": 1536, "correction": 2048},
+    "standard":      {"synthesis": 6144,  "subreport": 3072, "correction": 4096},
+    "comprehensive": {"synthesis": 12288, "subreport": 5120, "correction": 8192},
+    "deep":          {"synthesis": 16384, "subreport": 6144, "correction": 12288},
 }
 
 # Per-request LLM timeouts (seconds) scaled to match the token budget at ~10 tok/s.
 REPORT_LENGTH_TIMEOUTS: dict[str, dict[str, float]] = {
-    "brief":         {"synthesis": 300.0,  "subreport": 180.0, "correction": 240.0},
-    "standard":      {"synthesis": 480.0,  "subreport": 300.0, "correction": 360.0},
-    "comprehensive": {"synthesis": 900.0,  "subreport": 480.0, "correction": 600.0},
-    "deep":          {"synthesis": 1200.0, "subreport": 600.0, "correction": 900.0},
+    "brief":         {"synthesis": 360.0,  "subreport": 180.0, "correction": 240.0},
+    "standard":      {"synthesis": 600.0,  "subreport": 360.0, "correction": 420.0},
+    "comprehensive": {"synthesis": 1080.0, "subreport": 600.0, "correction": 720.0},
+    "deep":          {"synthesis": 1500.0, "subreport": 720.0, "correction": 1080.0},
 }
 
 

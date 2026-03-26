@@ -304,6 +304,9 @@ def _quality_profile_overrides(profile: Literal["strict", "relaxed"]) -> dict[st
     if profile != "relaxed":
         return {}
     return {
+        "subtopic_mode": "disabled",
+        "research_mode": "balanced",
+        "research_depth": "balanced",
         "report_completion_mode": "strict_no_placeholders",
         "allow_placeholder_sections": False,
         "report_structure_mode": "investigative",
@@ -317,8 +320,9 @@ def _quality_profile_overrides(profile: Literal["strict", "relaxed"]) -> dict[st
         "subreport_failure_policy": "continue_constrained",
         "insufficient_evidence_output": "soft_fallback",
         "llm_request_timeout_seconds_synthesis": 180,
-        "stream_stage_idle_seconds_synthesis": 1800,
-        "stream_stage_idle_seconds_research": 1800,
+        "stream_stage_idle_seconds_synthesis": 900,
+        "stream_stage_idle_seconds_research": 600,
+        "stream_max_runtime_seconds": 1200,
         "min_external_sources": 2,
         "min_unique_domains": 2,
         "min_unique_providers": 1,
@@ -335,6 +339,7 @@ def _quality_profile_overrides(profile: Literal["strict", "relaxed"]) -> dict[st
         "source_quality_bar": "mixed",
         "strict_high_confidence": False,
         "fact_mode": "balanced",
+        "max_sources_snapshot": 12,
     }
 
 
@@ -713,6 +718,12 @@ def health() -> dict[str, object]:
     }
 
 
+@app.get("/health/live")
+def health_live() -> dict[str, str]:
+    """Lightweight liveness endpoint for container healthchecks."""
+    return {"status": "ok"}
+
+
 @app.get("/health/deps")
 def health_deps() -> dict:
     cfg = load_config({"interactive_hitl": False})
@@ -728,7 +739,7 @@ def metrics() -> PlainTextResponse:
 def research(request: ResearchRequest) -> dict:
     overrides = _request_overrides(request)
     config = load_config(overrides)
-    startup = _startup_diagnostics(config)
+    startup = _cached_startup_diagnostics(config)
     startup_reason_codes_list = list(startup["startup_reason_codes"])  # type: ignore[arg-type]
     if config.startup_guard_mode == "strict" and startup_reason_codes_list:
         raise HTTPException(
@@ -925,6 +936,7 @@ async def research_stream(
             distributed_auto_enabled=config.distributed_auto_enabled,
         )
         yield f"data: {json.dumps({'type': 'status', 'stage': 'planning', 'active_stage': 'planning', 'message': 'Pipeline initialized. Preparing execution strategy.'})}\n\n"
+        startup = _cached_startup_diagnostics(config)
         reason_codes = list(startup["startup_reason_codes"])  # type: ignore[arg-type]
         if reason_codes:
             startup_msg = "Startup diagnostics detected optional dependency limits. Running with safe fallback behavior."

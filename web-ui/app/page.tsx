@@ -97,6 +97,7 @@ export default function Home() {
     startupReasonCodes,
     bannerReason,
     lastProgressAt,
+    activeStage,
     nowTick,
     startRun,
     stopRun,
@@ -146,6 +147,15 @@ export default function Home() {
     isSearching && (streamState === "connecting" || streamState === "running") && lastProgressAt !== null;
   const lastUpdateSeconds =
     lastProgressAt !== null ? Math.max(0, Math.floor((nowTick - lastProgressAt) / 1000)) : 0;
+  const activeStageLabel = useMemo(() => {
+    if (activeStage === "planning") return "Planning";
+    if (activeStage === "research") return "Research";
+    if (activeStage === "synthesis") return "Synthesis";
+    if (activeStage === "evaluation") return "Evaluation";
+    if (activeStage === "finalizing") return "Finalizing";
+    if (activeStage === "final") return "Final";
+    return "Current stage";
+  }, [activeStage]);
 
   const emptyReportText =
     streamState === "error"
@@ -296,7 +306,7 @@ export default function Home() {
               </div>
               {shouldShowLiveTimer ? (
                 <div className="nova-panel__foot">
-                  <p className="nova-panel__live">Last progress {lastUpdateSeconds}s ago</p>
+                  <p className="nova-panel__live">{activeStageLabel} {lastUpdateSeconds}s</p>
                 </div>
               ) : null}
             </section>
@@ -309,7 +319,22 @@ export default function Home() {
                 </div>
               </header>
               <div className="nova-panel__body nova-panel__body--monitor">
-                <LiveStream logs={logs} streamState={streamState} hasFinalReport={Boolean(finalReport)} nowTick={nowTick} />
+                <LiveStream
+                  logs={logs}
+                  streamState={streamState}
+                  hasFinalReport={Boolean(finalReport)}
+                  nowTick={nowTick}
+                  activeStage={
+                    activeStage === "research" ||
+                    activeStage === "synthesis" ||
+                    activeStage === "evaluation" ||
+                    activeStage === "finalizing" ||
+                    activeStage === "final"
+                      ? activeStage
+                      : "planning"
+                  }
+                  stageStartedAt={lastProgressAt}
+                />
               </div>
             </section>
           </aside>
