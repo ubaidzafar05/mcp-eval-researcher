@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { buildStreamUrl, fetchWithTimeout, HEALTH_URL, ReportLength } from "@/lib/api";
-import { BackendHealth, LogEvent, RunBannerReason, StreamState } from "@/lib/types";
+import { BackendHealth, Citation, LogEvent, RunBannerReason, StreamState } from "@/lib/types";
 
 const HEALTH_TIMEOUT_MS = 8000;
 const STREAM_FIRST_EVENT_TIMEOUT_MS = 45000;
@@ -25,7 +25,12 @@ type StreamPayload = {
   subtopic_completed?: number;
   data?: {
     result?: {
+      run_id?: string;
+      status?: string;
       final_report?: string;
+      citations?: Citation[];
+      metrics?: Record<string, unknown>;
+      generated_at?: string;
       constrained_reason_codes?: unknown;
     };
   };
@@ -143,6 +148,10 @@ function parseStreamPayload(raw: string): StreamPayload | null {
 export function useResearchRun() {
   const [logs, setLogs] = useState<LogEvent[]>([]);
   const [finalReport, setFinalReport] = useState("");
+  const [finalCitations, setFinalCitations] = useState<Citation[]>([]);
+  const [finalRunId, setFinalRunId] = useState("");
+  const [finalMetrics, setFinalMetrics] = useState<Record<string, unknown>>({});
+  const [completedAt, setCompletedAt] = useState<string>("");
   const [isSearching, setIsSearching] = useState(false);
   const [streamState, setStreamState] = useState<StreamState>("idle");
   const [reportNotice, setReportNotice] = useState("Research report will appear here...");
@@ -184,6 +193,10 @@ export function useResearchRun() {
     eventSourceRef.current?.close();
     setLogs([]);
     setFinalReport("");
+    setFinalCitations([]);
+    setFinalRunId("");
+    setFinalMetrics({});
+    setCompletedAt("");
     setIsSearching(false);
     setStreamState("idle");
     setReportNotice("Research report will appear here...");
@@ -215,6 +228,18 @@ export function useResearchRun() {
     }
     finalReceivedRef.current = true;
     setFinalReport(data.data.result.final_report);
+    setFinalCitations(Array.isArray(data.data.result.citations) ? data.data.result.citations : []);
+    setFinalRunId(typeof data.data.result.run_id === "string" ? data.data.result.run_id : "");
+    setFinalMetrics(
+      data.data.result.metrics && typeof data.data.result.metrics === "object"
+        ? data.data.result.metrics
+        : {},
+    );
+    setCompletedAt(
+      typeof data.data.result.generated_at === "string"
+        ? data.data.result.generated_at
+        : new Date().toISOString(),
+    );
     const finalCodes = normalizeReasonCodes(data.data?.result?.constrained_reason_codes);
     if (finalCodes.length > 0) {
       setStartupReasonCodes((prev) => mergeReasonCodes(prev, finalCodes));
@@ -325,6 +350,10 @@ export function useResearchRun() {
       setIsSearching(true);
       setLogs([]);
       setFinalReport("");
+      setFinalCitations([]);
+      setFinalRunId("");
+      setFinalMetrics({});
+      setCompletedAt("");
       setStreamState("connecting");
       setReportNotice("Connecting to research stream...");
       setStartupReasonCodes([]);
@@ -509,6 +538,10 @@ export function useResearchRun() {
   return {
     logs,
     finalReport,
+    finalCitations,
+    finalRunId,
+    finalMetrics,
+    completedAt,
     isSearching,
     streamState,
     reportNotice,

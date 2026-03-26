@@ -90,6 +90,10 @@ export default function Home() {
   const {
     logs,
     finalReport,
+    finalCitations,
+    finalRunId,
+    finalMetrics,
+    completedAt,
     isSearching,
     streamState,
     reportNotice,
@@ -356,7 +360,14 @@ export default function Home() {
 
             <div className="nova-report__body panel-enter">
               {finalReport ? (
-                <ReportView report={finalReport} qualityProfile={DEFAULT_QUALITY_PROFILE} />
+                <ReportView
+                  report={finalReport}
+                  citations={finalCitations}
+                  runId={finalRunId}
+                  metrics={finalMetrics}
+                  completedAt={completedAt}
+                  qualityProfile={DEFAULT_QUALITY_PROFILE}
+                />
               ) : (
                 <Card className="reader-placeholder">
                   <CardHeader className="border-b border-border/70 pb-4">

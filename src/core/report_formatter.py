@@ -93,6 +93,17 @@ def _normalize_claim_status_labels(body: str) -> str:
     return re.sub(r"(?im)(\|\s*)withheld(\s*\|)", r"\1unverified\2", body)
 
 
+def _strip_inline_confidence_markers(body: str) -> str:
+    if not body:
+        return ""
+    cleaned = re.sub(
+        r"(?i)\*{0,2}\[(high|moderate|low)\s+confidence|unverified\]\*{0,2}\s*[:,-]?\s*",
+        "",
+        body,
+    )
+    return re.sub(r"[ \t]{2,}", " ", cleaned)
+
+
 def _source_type_from_tier(tier: str) -> str:
     normalized = (tier or "unknown").strip().upper()
     if normalized == "A":
@@ -317,6 +328,7 @@ def format_report_with_sources(
     cleaned_citations = dedupe_citations(citations)
     body = _remove_sources_section(report)
     body = _normalize_claim_status_labels(body)
+    body = _strip_inline_confidence_markers(body)
     include_confidence_summary = (
         report_surface_mode != "decision_brief_only" or show_technical_sections_default
     )

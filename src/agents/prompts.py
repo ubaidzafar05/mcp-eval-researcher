@@ -65,8 +65,9 @@ Requirements:
 - PARAPHRASE all source material in your own words. Never copy-paste raw snippets or quotes directly.
 - Write thorough analytical prose organized in ## and ### sections.
 - Include at least 4 claims with claim IDs [C#].
-- Label every factual claim with confidence: [HIGH CONFIDENCE], [MODERATE CONFIDENCE], [LOW CONFIDENCE], or [UNVERIFIED].
-- Where evidence is thin, you MAY supplement with domain knowledge — label these [UNVERIFIED].
+- Do NOT place confidence labels inline in narrative sentences.
+- Keep uncertainty natural in prose and reserve status/confidence details for the Claims Summary section.
+- Where evidence is thin, you MAY supplement with domain knowledge — mark these as unverified in the Claims Summary.
 - Provide concrete data points, statistics, and real-world examples where available.
 - Analyze cause-and-effect relationships, not just surface-level observations.
 - Write in a professional, humanized tone — avoid bullet-point-only sections.
@@ -102,14 +103,14 @@ CRITICAL RULES:
 - Write with a humanized, objective, and analytical tone. Avoid repetitive, robotic transitions like "This section will..." or "In conclusion...". Ensure smooth, conversational, yet highly professional prose.
 - ALWAYS produce a complete report regardless of evidence quality. Never refuse to write or produce empty sections.
 
-CONFIDENCE LABELING (MANDATORY):
-Every major finding or claim MUST be labeled with one of these confidence indicators:
+CONFIDENCE HANDLING (MANDATORY):
+Every major finding or claim MUST have an associated confidence level, but do NOT place bracketed confidence markers inline in narrative prose.
+Confidence levels are:
 - **[HIGH CONFIDENCE]** — Backed by multiple corroborating Tier-A/B sources with consistent evidence.
 - **[MODERATE CONFIDENCE]** — Supported by at least one credible source but lacks full corroboration.
 - **[LOW CONFIDENCE]** — Based on limited, indirect, or single-source evidence. Treat as directional only.
 - **[UNVERIFIED]** — Derived from general domain knowledge or C-tier sources without independent confirmation.
-
-Place the label inline at the start of the claim sentence or paragraph. This lets readers instantly assess reliability without reading footnotes.
+Use those labels only in structured evidence sections, claim registers, or section metadata.
 
 RESEARCH STANDARDS:
 The report must demonstrate:
@@ -201,7 +202,7 @@ ALWAYS produce a complete report. Never refuse to write or leave sections empty.
 </critical_rules>
 
 <confidence_labeling>
-MANDATORY: Every major finding or claim must include one of these inline labels:
+MANDATORY: Every major finding or claim must map to one of these confidence levels:
 - **[HIGH CONFIDENCE]** — Multiple corroborating Tier-A/B sources with consistent evidence.
 - **[MODERATE CONFIDENCE]** — At least one credible source, lacks full corroboration.
 - **[LOW CONFIDENCE]** — Limited, indirect, or single-source evidence. Directional only.
@@ -263,7 +264,7 @@ Use this exact section order and headings (case-sensitive). Include ALL sections
 
 <quality_requirements>
 - Highly detailed and analytic, not a generic overview.
-- Explicitly label uncertainty and speculative elements using confidence tags.
+- Keep uncertainty explicit, but do not insert bracketed confidence tags into narrative prose.
 - Cite claims using [C#] seamlessly in the narrative when referencing evidence.
 - Keep Sources Used as the final section.
 </quality_requirements>
@@ -275,7 +276,7 @@ publication-grade analytical reports that read like they were produced by a prof
 
 REWRITE RULES (in priority order):
 1. **Analytical prose**: Replace any source-inventory tone, bullet-point lists, or template scaffolding with flowing, professional analytical prose.
-2. **Confidence labeling**: Every factual claim MUST have [HIGH CONFIDENCE], [MODERATE CONFIDENCE], [LOW CONFIDENCE], or [UNVERIFIED] labels.
+2. **Confidence handling**: Remove inline confidence brackets from prose. Keep confidence only in structured claims/evidence sections or metadata.
 3. **Markdown headings**: Use ## for main sections and ### for subsections. Never use **bold** as section headers.
 4. **Executive Summary**: Must directly answer the query in plain language with key findings, not hedge with "evidence is limited."
 5. **Real-world examples**: Each major section should include concrete examples or data points where available.

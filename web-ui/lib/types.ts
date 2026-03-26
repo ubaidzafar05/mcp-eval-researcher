@@ -7,6 +7,16 @@ export type RunBannerReason =
   | "stream_timeout"
   | "backend_unavailable";
 
+export interface Citation {
+  claim_id: string;
+  source_url: string;
+  title?: string;
+  provider?: string;
+  evidence?: string;
+  source_tier?: "A" | "B" | "C" | "unknown";
+  confidence?: "high" | "medium" | "low" | "unknown";
+}
+
 export interface LogEvent {
   type: "status" | "token" | "error" | "done";
   stage?: string;

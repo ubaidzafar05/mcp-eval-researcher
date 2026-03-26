@@ -380,6 +380,66 @@ def _build_doc_citations(
     return dedupe_citations(citations)
 
 
+def _use_section_writer(report_length: str) -> bool:
+    return report_length in {"comprehensive", "deep"}
+
+
+def _title_from_query(query: str) -> str:
+    cleaned = (query or "Research Report").strip().rstrip("?.! ")
+    if not cleaned:
+        return "Research Report"
+    return cleaned[:1].upper() + cleaned[1:]
+
+
+def _section_blueprint(report_structure_mode: str) -> list[dict[str, str]]:
+    if report_structure_mode == "academic_17":
+        return [
+            {"heading": "Abstract", "guidance": "Summarize the thesis, evidence base, and conclusions."},
+            {"heading": "Introduction", "guidance": "Frame the problem, scope, and why it matters."},
+            {"heading": "Theoretical Framework", "guidance": "Explain the conceptual lens and assumptions."},
+            {"heading": "Literature Review", "guidance": "Compare relevant research, institutions, and prior findings."},
+            {"heading": "Methodology", "guidance": "Describe evidence selection, source types, and analytical method."},
+            {"heading": "Empirical Results", "guidance": "Present the strongest sourced findings and data points."},
+            {"heading": "Generalization & Scaling Laws", "guidance": "Explain scalability, transferability, and boundary conditions."},
+            {"heading": "Practical Contributions", "guidance": "Translate the findings into operational implications."},
+            {"heading": "Limitations", "guidance": "State what remains uncertain and where the evidence is thin."},
+            {"heading": "Conclusion", "guidance": "Synthesize the result into a concise closing assessment."},
+        ]
+    return [
+        {"heading": "Executive Summary", "guidance": "Deliver the answer immediately and state the most important findings."},
+        {"heading": "Background and Context", "guidance": "Explain history, framing, and why this matters now."},
+        {"heading": "Key Questions", "guidance": "Break the topic into the critical analytical questions."},
+        {"heading": "Evidence and Findings", "guidance": "Present sourced findings, examples, and quantitative detail."},
+        {"heading": "Deep Analysis", "guidance": "Explain patterns, mechanisms, tradeoffs, and why they matter."},
+        {"heading": "Conflicting Evidence", "guidance": "Compare disagreements across sources and explain the divergence."},
+        {"heading": "Case Studies or Examples", "guidance": "Provide concrete real-world examples, cases, or comparisons."},
+        {"heading": "Limitations of Current Knowledge", "guidance": "State what is unresolved, weakly supported, or absent."},
+        {"heading": "Implications", "guidance": "Translate findings into business, policy, technical, or social impact."},
+        {"heading": "Recommendations", "guidance": "Offer practical next steps grounded in the evidence."},
+        {"heading": "Conclusion", "guidance": "Close with a sharp synthesis, not a recap."},
+    ]
+
+
+def _section_word_budget(
+    heading: str,
+    *,
+    target_total: int,
+    section_count: int,
+) -> int:
+    heavy_weights = {
+        "Executive Summary": 0.12,
+        "Evidence and Findings": 0.18,
+        "Deep Analysis": 0.18,
+        "Case Studies or Examples": 0.12,
+        "Implications": 0.10,
+        "Recommendations": 0.08,
+        "Conclusion": 0.07,
+    }
+    fallback_weight = max(0.06, 1 / max(1, section_count))
+    weight = heavy_weights.get(heading, fallback_weight)
+    return max(220, int(target_total * weight))
+
+
 def create_synthesizer_node(runtime: GraphRuntime):
     from core.synthesis.config_helpers import (
         adaptive_min_external_sources,
@@ -456,6 +516,102 @@ def create_synthesizer_node(runtime: GraphRuntime):
 
         return expanded if _word_count(expanded) > current_words else report
 
+    def _write_report_section(
+        *,
+        query: str,
+        heading: str,
+        guidance: str,
+        budget_words: int,
+        system_msg: str,
+        extracted_claims: str,
+        source_digest: str,
+        prior_sections: str,
+        model_selection,
+        deep_mode: bool,
+    ) -> str:
+        prompt = (
+            f"Query: {query}\n\n"
+            f"Write only the body for the section '{heading}'. Do not repeat the heading.\n"
+            f"Target length: about {budget_words} words.\n"
+            f"Section goal: {guidance}\n"
+            "Write polished, professional analytical prose with concrete examples and sourced detail.\n"
+            "Do not use bracketed confidence markers in the prose.\n"
+            "Use [C#] claim references naturally where relevant.\n"
+            "Do not repeat points already covered in earlier sections.\n\n"
+            f"Earlier Sections:\n{prior_sections or 'None yet.'}\n\n"
+            f"Extracted Claims:\n{extracted_claims}\n\n"
+            f"Source Digest:\n{source_digest}\n"
+        )
+        with runtime.model_router.use_tier(model_selection.tier):
+            client = runtime.get_llm_client(
+                model_selection.provider,
+                request_timeout_seconds=runtime.config.llm_request_timeout_seconds_synthesis,
+            )
+            return call_llm(
+                client,
+                model_selection.provider,
+                model_selection.model_name,
+                system_msg,
+                prompt,
+                deep_mode=deep_mode,
+                max_tokens=token_budget_for_task(runtime.config, "synthesis"),
+                timeout=timeout_for_task(runtime.config, "synthesis"),
+            ).strip()
+
+    def _build_section_writer_report(
+        *,
+        query: str,
+        system_msg: str,
+        source_digest: str,
+        extracted_claims: str,
+        model_selection,
+        min_words: int,
+        max_words: int,
+        deep_mode: bool,
+    ) -> str:
+        sections = _section_blueprint(runtime.config.report_structure_mode)
+        target_total = max(min_words, int((min_words + max_words) / 2))
+        assembled: list[str] = [f"# {_title_from_query(query)}"]
+        prior_summaries: list[str] = []
+        for section in sections:
+            budget = _section_word_budget(
+                section["heading"],
+                target_total=target_total,
+                section_count=len(sections),
+            )
+            body = _write_report_section(
+                query=query,
+                heading=section["heading"],
+                guidance=section["guidance"],
+                budget_words=budget,
+                system_msg=system_msg,
+                extracted_claims=extracted_claims,
+                source_digest=source_digest,
+                prior_sections="\n\n".join(prior_summaries[-3:]),
+                model_selection=model_selection,
+                deep_mode=deep_mode,
+            )
+            if _word_count(body) < max(140, int(budget * 0.65)):
+                body = _write_report_section(
+                    query=query,
+                    heading=section["heading"],
+                    guidance=f"{section['guidance']} Expand with more examples, comparisons, and sourced detail.",
+                    budget_words=budget,
+                    system_msg=system_msg,
+                    extracted_claims=extracted_claims,
+                    source_digest=source_digest,
+                    prior_sections="\n\n".join(prior_summaries[-3:]),
+                    model_selection=model_selection,
+                    deep_mode=True,
+                )
+            assembled.append(f"## {section['heading']}\n{body.strip()}")
+            prior_summaries.append(f"{section['heading']}: {markdown_preview(body)}")
+        return "\n\n".join(assembled).strip()
+
+    def markdown_preview(text: str) -> str:
+        plain = re.sub(r"\s+", " ", re.sub(r"[#*_`>\-\[\]]", " ", text or "")).strip()
+        return plain[:320]
+
     def synthesizer_node(state: ResearchState) -> dict:
         # Subtopic map-reduce path: merge branch sub-reports as primary synthesis input.
         sub_reports = [
@@ -500,13 +656,13 @@ def create_synthesizer_node(runtime: GraphRuntime):
                 "EVIDENCE USAGE RULES:\n"
                 "- Anchor all core claims to sub-report evidence using their [C###] IDs.\n"
                 "- You MAY enrich sections with domain knowledge, contextual analysis, real-world examples, and practical insights.\n"
-                "- Any claim not directly from sub-reports MUST be labeled [UNVERIFIED].\n"
+                "- Any claim not directly from sub-reports must remain cautious and be reflected in structured evidence sections, not inline confidence markup.\n"
                 "- Prioritize cited evidence but do NOT leave sections thin — expand with deep analysis.\n\n"
                 "DEPTH REQUIREMENTS:\n"
                 f"- Write a thorough, well-structured report of {wmin:,}-{wmax:,} words.\n"
                 "- Include ### subsections within major sections.\n"
                 "- Write in professional analytical prose, not bulleted lists.\n"
-                "- Do NOT hedge excessively — present findings assertively with confidence labels.\n"
+                "- Do NOT hedge excessively — present findings assertively with natural prose.\n"
                 "- Include an Evidence Agreement and Disagreement section if applicable.\n\n"
                 f"{context}\n"
             )
@@ -698,7 +854,7 @@ def create_synthesizer_node(runtime: GraphRuntime):
         if not pruned_docs:
             # No external sources — generate report from query using LLM with
             # clear "no external evidence" labeling. Always produce a report.
-            logger.warning("No external docs available — synthesizing from query only with confidence labels.")
+            logger.warning("No external docs available — synthesizing from query only with structured uncertainty handling.")
             system_msg = (
                 INVESTIGATIVE_PROMPT
                 if runtime.config.report_structure_mode == "investigative"
@@ -708,7 +864,7 @@ def create_synthesizer_node(runtime: GraphRuntime):
                 f"Query: {state['query']}\n\n"
                 "IMPORTANT: No external sources were retrieved for this query. "
                 "Write a comprehensive analytical report using your domain knowledge. "
-                "Label ALL claims as [UNVERIFIED] since no external citations are available. "
+                "Keep the prose natural and reserve uncertainty/status for a structured claims section because no external citations are available. "
                 "The report must still be thorough and detailed — explain what is generally known "
                 "about this topic, identify key questions, and outline what evidence would be needed. "
                 "Do NOT leave sections empty or refuse to write.\n\n"
@@ -750,17 +906,17 @@ def create_synthesizer_node(runtime: GraphRuntime):
                     state=state, citations=[], reason="no_docs_llm_synthesis"
                 ),
                 "status": "synthesized",
-                "logs": ["No external docs — generated report from LLM knowledge with UNVERIFIED labels."],
+                "logs": ["No external docs — generated report from LLM knowledge with structured uncertainty markers."],
             }
 
         # Pre-synthesis Tier-A/B check: log warning but proceed with C-tier evidence.
-        # Reports always include confidence labels so readers can assess evidence quality.
+        # Reports always preserve evidence confidence in structured sections and metadata.
         tier_ab_docs = [
             d for d in pruned_docs
             if ((d.meta or {}).get("source_tier") or "").upper() in {"A", "B"}
         ]
         if not tier_ab_docs:
-            logger.warning("No Tier-A/B sources found — proceeding with C-tier evidence and confidence labels.")
+            logger.warning("No Tier-A/B sources found — proceeding with C-tier evidence and structured confidence metadata.")
 
         # 3. Pass 1: Extraction & Context Building
         extraction_result = None
@@ -804,6 +960,7 @@ def create_synthesizer_node(runtime: GraphRuntime):
             else SYNTHESIZER_PROMPT
         )
         wmin, wmax = report_length_word_range(runtime.config)
+        extracted_claims_text = _format_extracted_claims(extraction_result)
         user_msg = (
             f"Query: {state['query']}\n\n"
             f"Context Policy: {policy_note(policy)}\n"
@@ -812,18 +969,18 @@ def create_synthesizer_node(runtime: GraphRuntime):
             "EVIDENCE USAGE RULES:\n"
             "- Anchor all core claims to Extracted Claims using their [C###] IDs.\n"
             "- You MAY enrich sections with domain knowledge, contextual analysis, real-world examples, and practical insights.\n"
-            "- Any claim not directly from Extracted Claims MUST be labeled [UNVERIFIED].\n"
+            "- Any claim not directly from Extracted Claims must be treated cautiously and reflected in the claims register, not as inline confidence markup.\n"
             "- Prioritize cited evidence but do NOT leave sections thin — expand with deep analysis.\n\n"
             "DEPTH REQUIREMENTS:\n"
             f"- Write a thorough, well-structured report of {wmin:,}-{wmax:,} words.\n"
             "- Each major section must have 2-4 substantial paragraphs and use subsections where helpful.\n"
             "- Include real-world examples, links, and practical implications.\n"
             "- Write in professional analytical prose, not bulleted lists.\n"
-            "- Do NOT hedge excessively — present findings assertively with confidence labels.\n"
+            "- Do NOT hedge excessively — present findings assertively with natural prose.\n"
             "- Use multiple distinct sources across the report, not just one repeated citation.\n"
             "- Pull concrete examples, links, and quantitative details from the source digest.\n"
             "- Compare sources when they disagree, and explain why that disagreement matters.\n\n"
-            f"Extracted Claims:\n{_format_extracted_claims(extraction_result)}\n\n"
+            f"Extracted Claims:\n{extracted_claims_text}\n\n"
             f"Source Digest:\n{source_digest}\n"
         )
 
@@ -838,20 +995,32 @@ def create_synthesizer_node(runtime: GraphRuntime):
 
         report = ""
         try:
-            client = runtime.get_llm_client(
-                model_selection.provider,
-                request_timeout_seconds=runtime.config.llm_request_timeout_seconds_synthesis,
-            )
-            report = call_llm(
-                client,
-                model_selection.provider,
-                model_selection.model_name,
-                system_msg,
-                user_msg,
-                deep_mode=deep_mode,
-                max_tokens=token_budget_for_task(runtime.config, "synthesis"),
-                timeout=timeout_for_task(runtime.config, "synthesis"),
-            )
+            if _use_section_writer(runtime.config.report_length):
+                report = _build_section_writer_report(
+                    query=state["query"],
+                    system_msg=system_msg,
+                    source_digest=source_digest,
+                    extracted_claims=extracted_claims_text,
+                    model_selection=model_selection,
+                    min_words=min_words,
+                    max_words=wmax,
+                    deep_mode=deep_mode,
+                )
+            else:
+                client = runtime.get_llm_client(
+                    model_selection.provider,
+                    request_timeout_seconds=runtime.config.llm_request_timeout_seconds_synthesis,
+                )
+                report = call_llm(
+                    client,
+                    model_selection.provider,
+                    model_selection.model_name,
+                    system_msg,
+                    user_msg,
+                    deep_mode=deep_mode,
+                    max_tokens=token_budget_for_task(runtime.config, "synthesis"),
+                    timeout=timeout_for_task(runtime.config, "synthesis"),
+                )
             report = _expand_report_if_needed(
                 report=report,
                 system_msg=system_msg,
@@ -902,7 +1071,7 @@ def create_synthesizer_node(runtime: GraphRuntime):
                 )
 
         citations = dedupe_citations(citations)
-        if runtime.config.relaxed_quality_mode and "## Claims" not in (report or ""):
+        if "## Claims" not in (report or ""):
             claims_section = _claims_section_from_extraction(extraction_result)
             if claims_section:
                 report = f"{report.strip()}\n\n{claims_section}".strip()

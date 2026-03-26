@@ -233,7 +233,7 @@ def create_self_correction_node(runtime: GraphRuntime):
                     "Rewrite the report to satisfy all requirements. Produce a COMPREHENSIVE, DEEPLY ANALYTICAL report.\n\n"
                     "MANDATORY REQUIREMENTS:\n"
                     "- Keep ALL valid claim IDs ([C101], [C201], etc.) and do NOT invent sources.\n"
-                    "- Every factual claim MUST have a confidence label: [HIGH CONFIDENCE], [MODERATE CONFIDENCE], [LOW CONFIDENCE], or [UNVERIFIED].\n"
+                    "- Remove inline bracketed confidence markers from narrative prose. Keep confidence/status details only in structured claims or evidence sections.\n"
                     "- Use ## Markdown headings (not **bold**) for all section titles.\n"
                     "- Use ### subheadings within each section for detailed breakdown.\n"
                     "- The rewritten report must be at least as long as the original. Expand thin sections.\n"

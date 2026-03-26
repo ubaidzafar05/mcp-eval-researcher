@@ -35,6 +35,7 @@ export const REPORT_LENGTH_OPTIONS: {
 
 export const HEALTH_URL = `${API_BASE}/health/live`;
 export const STREAM_BASE_URL = `${API_BASE}/research/stream`;
+export const EXPORT_PDF_URL = `${API_BASE}/api/v1/export-pdf`;
 
 export function buildStreamUrl(query: string, reportLength: ReportLength = "standard"): string {
   return `${STREAM_BASE_URL}?query=${encodeURIComponent(query)}&execution_mode=${DEFAULT_EXECUTION_MODE}&runtime_profile=${DEFAULT_RUNTIME_PROFILE}&quality_profile=${DEFAULT_QUALITY_PROFILE}&report_length=${reportLength}`;
@@ -48,4 +49,24 @@ export async function fetchWithTimeout(url: string, timeoutMs: number): Promise<
   } finally {
     window.clearTimeout(timeout);
   }
+}
+
+export async function exportReportPdf(payload: {
+  runId: string;
+  report: string;
+  citations: unknown[];
+}): Promise<Blob> {
+  const response = await fetch(EXPORT_PDF_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      run_id: payload.runId,
+      report: payload.report,
+      citations: payload.citations,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`PDF export failed with ${response.status}`);
+  }
+  return response.blob();
 }

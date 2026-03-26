@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, KeyboardEvent, useMemo, useState } from "react";
 import { Loader2, Search, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -67,64 +67,85 @@ export function ResearchForm({ onSearch, isSearching }: ResearchFormProps) {
     onSearch(trimmed, reportLength);
   };
 
+  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== "Enter" || event.shiftKey) {
+      return;
+    }
+    const trimmed = query.trim();
+    if (!trimmed || isSearching) {
+      return;
+    }
+    event.preventDefault();
+    onSearch(trimmed, reportLength);
+  };
+
   return (
     <form onSubmit={handleSubmit} className="composer-form">
-      <div className="composer-toolbar">
-        <MetricChip tone={stats.quality.tone}>{stats.quality.label}</MetricChip>
-        <MetricChip tone="neutral">{stats.profile}</MetricChip>
-        <MetricChip tone="neutral">{stats.words} words</MetricChip>
-        <MetricChip tone="neutral">{stats.chars} chars</MetricChip>
+      <div className="composer-body">
+        <div className="composer-toolbar">
+          <MetricChip tone={stats.quality.tone}>{stats.quality.label}</MetricChip>
+          <MetricChip tone="neutral">{stats.profile}</MetricChip>
+          <MetricChip tone="neutral">{stats.words} words</MetricChip>
+          <MetricChip tone="neutral">{stats.chars} chars</MetricChip>
+        </div>
+
+        <label className="composer-label">Research Question</label>
+        <Textarea
+          name="query"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Example: Compare AI detector methods for long-form blogs, including false-positive behavior, adversarial robustness, and practical hardening controls."
+          className="composer-textarea"
+          required
+          disabled={isSearching}
+        />
+
+        <label className="composer-label" style={{ marginTop: "0.75rem" }}>
+          Report Length
+        </label>
+        <div className="report-length-selector">
+          {REPORT_LENGTH_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className={`report-length-option${reportLength === opt.value ? " report-length-option--active" : ""}`}
+              onClick={() => setReportLength(opt.value)}
+              disabled={isSearching}
+            >
+              <span className="report-length-option__label">{opt.label}</span>
+              <span className="report-length-option__meta">
+                {opt.words} &middot; {opt.eta}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <div className="composer-guidance">
+          <Sparkles className="h-3.5 w-3.5" />
+          <p>
+            {stats.quality.hint} — Report: {selectedOption.words}, ETA {selectedOption.eta}
+          </p>
+        </div>
       </div>
-
-      <label className="composer-label">Research Question</label>
-      <Textarea
-        name="query"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder="Example: Compare AI detector methods for long-form blogs, including false-positive behavior, adversarial robustness, and practical hardening controls."
-        className="composer-textarea"
-        required
-        disabled={isSearching}
-      />
-
-      <label className="composer-label" style={{ marginTop: "0.75rem" }}>
-        Report Length
-      </label>
-      <div className="report-length-selector">
-        {REPORT_LENGTH_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            className={`report-length-option${reportLength === opt.value ? " report-length-option--active" : ""}`}
-            onClick={() => setReportLength(opt.value)}
-            disabled={isSearching}
-          >
-            <span className="report-length-option__label">{opt.label}</span>
-            <span className="report-length-option__meta">
-              {opt.words} &middot; {opt.eta}
-            </span>
-          </button>
-        ))}
+      <div className="composer-actions">
+        <p className="composer-actions__hint">Enter to run. Shift+Enter for newline.</p>
+        <Button type="submit" size="sm" className="composer-submit" disabled={isSearching || !query.trim()}>
+          {isSearching ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" /> Running...
+            </>
+          ) : query.trim() ? (
+            <>
+              <Search className="h-4 w-4" /> Start
+            </>
+          ) : (
+            <>
+              <Search className="h-4 w-4" /> Enter a question
+            </>
+          )}
+        </Button>
       </div>
-
-      <div className="composer-guidance">
-        <Sparkles className="h-3.5 w-3.5" />
-        <p>
-          {stats.quality.hint} — Report: {selectedOption.words}, ETA {selectedOption.eta}
-        </p>
-      </div>
-
-      <Button type="submit" size="lg" className="composer-submit" disabled={isSearching || !query.trim()}>
-        {isSearching ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Running Research Pipeline...
-          </>
-        ) : (
-          <>
-            <Search className="mr-2 h-4 w-4" /> Start Deep Research
-          </>
-        )}
-      </Button>
     </form>
   );
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -32,6 +33,22 @@ def _event_node(event: dict[str, Any]) -> str:
             return node
     name = event.get("name")
     return name if isinstance(name, str) else ""
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(tz=UTC).isoformat()
+
+
+def _serialize_citations(raw_citations: Any) -> list[dict[str, Any]]:
+    if not isinstance(raw_citations, list):
+        return []
+    serialized: list[dict[str, Any]] = []
+    for item in raw_citations:
+        if hasattr(item, "model_dump"):
+            serialized.append(item.model_dump())
+        elif isinstance(item, dict):
+            serialized.append(item)
+    return serialized
 
 
 async def event_generator(
@@ -139,6 +156,11 @@ async def event_generator(
                             "status": output.get("status", "completed"),
                             "final_report": report,
                             "artifacts_path": output.get("artifacts_path", ""),
+                            "citations": _serialize_citations(output.get("citations")),
+                            "metrics": output.get("metrics", {})
+                            if isinstance(output.get("metrics"), dict)
+                            else {},
+                            "generated_at": _utc_now_iso(),
                             "constrained_reason_codes": (
                                 list((output.get("metrics") or {}).get("constrained_reason_codes", []))
                                 if isinstance(output.get("metrics"), dict)
@@ -180,6 +202,9 @@ async def event_generator(
                     "status": "completed",
                     "final_report": last_report,
                     "artifacts_path": "",
+                    "citations": [],
+                    "metrics": {},
+                    "generated_at": _utc_now_iso(),
                     "constrained_reason_codes": [],
                     "subtopic_count": 0,
                     "subtopic_success_count": 0,

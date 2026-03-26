@@ -479,9 +479,8 @@ svg {
 }
 
 .nova-panel--command .nova-panel__body {
-  overflow-y: auto;
-  padding-right: 0.25rem;
-  scrollbar-gutter: stable;
+  overflow: hidden;
+  padding-right: 0;
 }
 
 .nova-panel__body--monitor {
@@ -608,6 +607,17 @@ svg {
   flex-direction: column;
   gap: 0.6rem;
   min-height: 0;
+  height: 100%;
+}
+
+.composer-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 0.15rem;
+  scrollbar-gutter: stable;
 }
 
 .composer-toolbar {
@@ -652,6 +662,23 @@ svg {
   color: var(--text-muted);
   font-size: 0.78rem;
   line-height: 1.4;
+}
+
+.composer-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.75rem;
+  margin-top: auto;
+  background: linear-gradient(180deg, transparent 0%, var(--surface-1) 24%);
+}
+
+.composer-actions__hint {
+  color: var(--text-muted);
+  font-size: 0.76rem;
 }
 
 /* Report length selector */
@@ -709,8 +736,9 @@ svg {
 }
 
 .composer-submit {
-  width: 100%;
+  min-width: 148px;
   justify-content: center;
+  margin-left: auto;
 }
 
 .reader-shell {
@@ -759,6 +787,14 @@ svg {
   align-items: center;
 }
 
+.report-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .report-mode-row {
   display: inline-flex;
   gap: 0.5rem;
@@ -767,6 +803,19 @@ svg {
   border-radius: var(--radius-2xl);
   border: 1px solid var(--border-soft);
   background: var(--surface-2);
+}
+
+.report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.report-meta-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
 }
 
 .reader-answer {
@@ -833,6 +882,8 @@ svg {
   max-height: 100%;
   overflow-y: auto;
   align-self: start;
+  position: sticky;
+  top: 0;
 }
 
 .report-scroll {
@@ -894,12 +945,20 @@ svg {
   box-shadow: var(--shadow-1);
 }
 
+.report-chapter__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
 .report-chapter h2 {
   display: flex;
   align-items: center;
   gap: 0.4rem;
   font-size: 1.1rem;
-  margin-bottom: 0.6rem;
+  margin-bottom: 0;
 }
 
 .report-chapter--reveal {
@@ -1071,6 +1130,25 @@ svg {
 
   .nova-body {
     min-height: 620px;
+  }
+}
+
+@media (max-width: 900px) {
+  .composer-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .composer-submit {
+    width: 100%;
+  }
+
+  .report-toolbar {
+    align-items: stretch;
+  }
+
+  .report-actions {
+    margin-left: 0;
   }
 }
 
