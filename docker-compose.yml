@@ -48,6 +48,7 @@ services:
       LLM_REQUEST_TIMEOUT_SECONDS_RESEARCH: "90"
       LLM_REQUEST_TIMEOUT_SECONDS_SYNTHESIS: "600"
       RELAXED_QUALITY_MODE: "true"
+      WEB_CONCURRENCY: "2"
       OLLAMA_ENDPOINT: http://host.docker.internal:11434
       OLLAMA_MODEL_EMBED: nomic-embed-text
       METRICS_ENABLED: "true"
@@ -79,7 +80,7 @@ services:
           "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health/live', timeout=2)",
         ]
       interval: 20s
-      timeout: 4s
+      timeout: 6s
       retries: 5
       start_period: 20s
     logging:

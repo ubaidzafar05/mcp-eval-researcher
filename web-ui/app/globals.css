@@ -404,7 +404,8 @@ svg {
   flex-direction: column;
   gap: 0.75rem;
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .nova-panel {
@@ -427,7 +428,7 @@ svg {
 
 .nova-panel--monitor {
   flex: 1;
-  min-height: 200px;
+  min-height: 280px;
   border-left: 3px solid var(--status-teal);
   overflow: hidden;
 }
@@ -1055,6 +1056,21 @@ svg {
 
   .nova-panel--monitor {
     min-height: 260px;
+  }
+}
+
+@media (max-height: 760px) {
+  .nova-root {
+    overflow: auto;
+  }
+
+  .nova-shell {
+    min-height: 100%;
+    height: auto;
+  }
+
+  .nova-body {
+    min-height: 620px;
   }
 }
 

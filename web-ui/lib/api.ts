@@ -33,7 +33,7 @@ export const REPORT_LENGTH_OPTIONS: {
   { value: "deep", label: "Deep Dive", words: "~8,000 words", eta: "~20 min" },
 ];
 
-export const HEALTH_URL = `${API_BASE}/health`;
+export const HEALTH_URL = `${API_BASE}/health/live`;
 export const STREAM_BASE_URL = `${API_BASE}/research/stream`;
 
 export function buildStreamUrl(query: string, reportLength: ReportLength = "standard"): string {

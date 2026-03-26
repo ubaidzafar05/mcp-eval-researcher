@@ -1303,6 +1303,7 @@ def main() -> None:
         host="0.0.0.0",
         port=8080,
         log_level="info",
+        workers=max(1, int(os.getenv("WEB_CONCURRENCY", "2"))),
         timeout_graceful_shutdown=30,
     )
 

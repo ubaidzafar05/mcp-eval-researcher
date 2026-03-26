@@ -5,20 +5,20 @@ import { Slot } from "@radix-ui/react-slot"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold tracking-[0.01em] transition-[transform,box-shadow,background-color,color,border-color] disabled:pointer-events-none disabled:opacity-60 disabled:text-foreground/70 disabled:border-border/70 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold tracking-[0.01em] transition-[transform,box-shadow,background-color,color,border-color] disabled:pointer-events-none disabled:opacity-100 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
   {
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-[var(--shadow-1)] hover:bg-primary/90 hover:shadow-[var(--shadow-2)] button-shimmer",
+          "bg-primary text-primary-foreground shadow-[var(--shadow-1)] hover:bg-primary/90 hover:shadow-[var(--shadow-2)] button-shimmer disabled:bg-primary/60 disabled:text-primary-foreground disabled:shadow-none",
         destructive:
-          "bg-destructive text-white shadow-[var(--shadow-1)] hover:bg-destructive/90 focus-visible:ring-destructive/30",
+          "bg-destructive text-white shadow-[var(--shadow-1)] hover:bg-destructive/90 focus-visible:ring-destructive/30 disabled:bg-destructive/60 disabled:text-white",
         outline:
-          "border border-border/70 bg-transparent text-foreground hover:bg-muted/60 hover:text-foreground",
+          "border border-border/70 bg-transparent text-foreground hover:bg-muted/60 hover:text-foreground disabled:border-border/70 disabled:bg-muted/35 disabled:text-foreground/75",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:bg-secondary/60 disabled:text-secondary-foreground/80",
         ghost:
-          "bg-transparent hover:bg-accent/40 hover:text-accent-foreground",
+          "bg-transparent hover:bg-accent/40 hover:text-accent-foreground disabled:text-foreground/60",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
