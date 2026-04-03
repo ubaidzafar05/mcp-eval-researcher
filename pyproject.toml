@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "cloud-hive"
 version = "0.1.0"
-description = "Cloud-free cutting-edge research engine with LangGraph, MCP, and DeepEval controls."
+description = "LangGraph research engine with MCP tool routing, distributed execution, and DeepEval gates."
 authors = ["Cloud Hive Team"]
 readme = "README.md"
 packages = [
